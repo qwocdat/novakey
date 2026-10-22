@@ -1,0 +1,49 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "adminUsers": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": false
+      }
+    },
+    "store": {
+      ".read": true,
+      ".write": "auth != null && root.child('adminUsers').child(auth.uid).val() === true"
+    },
+    "keyVault": {
+      ".read": "auth != null && root.child('adminUsers').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('adminUsers').child(auth.uid).val() === true"
+    },
+    "orders": {
+      ".read": "auth != null && root.child('adminUsers').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('adminUsers').child(auth.uid).val() === true",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('adminUsers').child(auth.uid).val() === true)",
+        "$orderId": {
+          ".write": "auth != null && (root.child('adminUsers').child(auth.uid).val() === true || (auth.uid === $uid && !data.exists() && newData.child('status').val() === 'pending' && newData.child('key').val() === null && newData.child('uid').val() === auth.uid && newData.child('customerName').isString() && newData.child('contact').isString() && newData.child('customerName').val().length <= 70 && newData.child('contact').val().length <= 120))",
+          ".validate": "newData.hasChildren(['type', 'uid', 'productId', 'productName', 'planId', 'planLabel', 'price', 'customerName', 'contact', 'status', 'createdAt'])",
+          "uid": {
+            ".validate": "newData.val() === $uid"
+          },
+          "type": {
+            ".validate": "newData.val() === 'paid' || newData.val() === 'free'"
+          },
+          "price": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "customerName": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 70"
+          },
+          "contact": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
+          },
+          "status": {
+            ".validate": "newData.val() === 'pending' || newData.val() === 'paid' || newData.val() === 'delivered' || newData.val() === 'rejected'"
+          }
+        }
+      }
+    }
+  }
+}
