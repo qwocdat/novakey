@@ -1,0 +1,2518 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070a12">
+<title>KEYNOVA · Admin Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#070a12;
+  --panel:rgba(16,23,41,.82);
+  --panel-solid:#0f1628;
+  --line:rgba(130,155,215,.18);
+  --text:#f3f6ff;
+  --muted:#8d99b4;
+  --cyan:#70f0ed;
+  --blue:#8292ff;
+  --violet:#a58bff;
+  --green:#85f3b0;
+  --red:#ff8597;
+  --amber:#ffd17a;
+}
+*{
+  box-sizing:border-box;
+  -webkit-user-select:none;
+  -moz-user-select:none;
+  -ms-user-select:none;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+::selection{background:transparent;color:inherit}
+::-moz-selection{background:transparent;color:inherit}
+input,textarea,select,.allow-select{
+  -webkit-user-select:text!important;
+  -moz-user-select:text!important;
+  -ms-user-select:text!important;
+  user-select:text!important;
+}
+input::selection,textarea::selection,.allow-select::selection{
+  background:rgba(112,240,237,.25);
+  color:#fff;
+}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:Inter,system-ui,-apple-system,sans-serif;
+  overflow-x:hidden;
+  min-height:100vh;
+}
+#shaderCanvas{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  z-index:0;
+  pointer-events:none;
+}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+img,video{max-width:100%;display:block;-webkit-user-drag:none}
+.hidden{display:none!important}
+.muted{color:var(--muted)}
+a{color:var(--cyan);text-decoration:none}
+.glass{
+  background:linear-gradient(135deg,rgba(22,32,56,.86),rgba(11,16,30,.9));
+  border:1px solid var(--line);
+  backdrop-filter:blur(22px);
+  -webkit-backdrop-filter:blur(22px);
+  box-shadow:0 22px 70px rgba(0,0,0,.42);
+}
+
+/* Circular Page Loader */
+.page-loader{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:radial-gradient(circle at 50% 50%,#121c35 0%,#060911 75%);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:22px;
+  transition:opacity .55s cubic-bezier(.4,0,.2,1),transform .55s cubic-bezier(.4,0,.2,1),visibility .55s;
+}
+.page-loader.loaded{
+  opacity:0;
+  transform:scale(1.06);
+  visibility:hidden;
+  pointer-events:none;
+}
+.loader-circle-wrap{
+  position:relative;
+  width:136px;
+  height:136px;
+  display:grid;
+  place-items:center;
+}
+.loader-ring-outer{
+  position:absolute;
+  inset:0;
+  border-radius:50%;
+  border:2px dashed rgba(112,240,237,.35);
+  animation:spinSlow 8s linear infinite;
+}
+.loader-ring-inner{
+  position:absolute;
+  inset:14px;
+  border-radius:50%;
+  border:1px solid rgba(130,146,255,.28);
+  border-top-color:var(--cyan);
+  border-bottom-color:var(--violet);
+  animation:spinReverse 2.4s cubic-bezier(.55,.15,.45,.85) infinite;
+}
+.loader-svg{
+  width:136px;
+  height:136px;
+  transform:rotate(-90deg);
+}
+.loader-track{
+  fill:none;
+  stroke:rgba(255,255,255,.06);
+  stroke-width:4;
+}
+.loader-bar{
+  fill:none;
+  stroke:url(#adminLoaderGrad);
+  stroke-width:4.5;
+  stroke-linecap:round;
+  stroke-dasharray:364;
+  stroke-dashoffset:364;
+  transition:stroke-dashoffset .2s ease;
+  filter:drop-shadow(0 0 8px rgba(112,240,237,.6));
+}
+.loader-core{
+  position:absolute;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+}
+.loader-logo{
+  width:42px;
+  height:42px;
+  border-radius:14px;
+  background:linear-gradient(135deg,var(--cyan),var(--blue));
+  color:#07101c;
+  font-weight:900;
+  font-size:20px;
+  display:grid;
+  place-items:center;
+  box-shadow:0 0 28px rgba(112,240,237,.45);
+}
+.loader-pct{
+  font-size:11px;
+  font-weight:800;
+  color:var(--cyan);
+  letter-spacing:.08em;
+  margin-top:4px;
+}
+.loader-text{
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.18em;
+  color:var(--muted);
+  text-transform:uppercase;
+}
+@keyframes spinSlow{to{transform:rotate(360deg)}}
+@keyframes spinReverse{to{transform:rotate(-360deg)}}
+
+/* Scroll Reveal Up / Down */
+.scroll-reveal{
+  opacity:0;
+  transform:translateY(26px) scale(.985);
+  transition:opacity .55s cubic-bezier(.22,1,.36,1),transform .55s cubic-bezier(.22,1,.36,1);
+  will-change:opacity,transform;
+}
+.scroll-reveal.from-top{
+  transform:translateY(-26px) scale(.985);
+}
+.scroll-reveal.in-view{
+  opacity:1;
+  transform:translateY(0) scale(1);
+}
+
+.btn{
+  border:1px solid transparent;
+  border-radius:12px;
+  padding:11px 15px;
+  font-size:11px;
+  font-weight:800;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  transition:transform .2s,filter .2s,border-color .2s,box-shadow .2s;
+}
+.btn:hover{transform:translateY(-1px);filter:brightness(1.08)}
+.btn:active{transform:translateY(0)}
+.primary{
+  background:linear-gradient(110deg,var(--cyan),#9aabff);
+  color:#08111b;
+  box-shadow:0 8px 25px rgba(112,240,237,.22);
+}
+.secondary{
+  background:rgba(255,255,255,.05);
+  border-color:var(--line);
+  color:var(--text);
+}
+.danger{
+  background:rgba(255,133,151,.12);
+  border-color:rgba(255,133,151,.32);
+  color:#ff9cac;
+}
+.success{
+  background:rgba(133,243,176,.12);
+  border-color:rgba(133,243,176,.32);
+  color:var(--green);
+}
+.small{padding:8px 11px;font-size:10px;border-radius:10px}
+
+.login-screen{
+  position:relative;
+  z-index:2;
+  min-height:100vh;
+  display:grid;
+  place-items:center;
+  padding:20px;
+}
+.login-card{
+  width:min(440px,100%);
+  border-radius:26px;
+  padding:32px;
+  position:relative;
+  overflow:hidden;
+}
+.login-card::before{
+  content:"";
+  position:absolute;
+  inset:0 0 auto 0;
+  height:3px;
+  background:linear-gradient(90deg,var(--cyan),var(--blue),var(--violet));
+}
+.brand{
+  font-weight:900;
+  font-size:20px;
+  letter-spacing:-.05em;
+  display:flex;
+  align-items:center;
+  gap:11px;
+}
+.brand-icon{
+  height:40px;
+  width:40px;
+  display:grid;
+  place-items:center;
+  border-radius:13px;
+  background:linear-gradient(130deg,var(--cyan),var(--blue));
+  color:#08111b;
+  box-shadow:0 6px 22px rgba(112,240,237,.3);
+}
+.login-card h1{
+  font-size:28px;
+  letter-spacing:-.05em;
+  margin:24px 0 8px;
+}
+.login-card p{
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.75;
+}
+.field{
+  display:grid;
+  gap:7px;
+  margin:14px 0;
+}
+.field label{
+  font-size:10px;
+  font-weight:800;
+  color:#b5c1db;
+  letter-spacing:.04em;
+}
+.field input,.field select,.field textarea{
+  width:100%;
+  padding:12px 13px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:rgba(9,15,27,.9);
+  color:white;
+  outline:none;
+  font-size:12px;
+  transition:border-color .2s,box-shadow .2s;
+}
+.field textarea{min-height:84px;resize:vertical}
+.field input:focus,.field select:focus,.field textarea:focus{
+  border-color:rgba(112,240,237,.65);
+  box-shadow:0 0 0 3px rgba(112,240,237,.12);
+}
+.pass-wrap{
+  position:relative;
+  display:flex;
+  align-items:center;
+}
+.pass-wrap input{padding-right:70px}
+.pass-toggle{
+  position:absolute;
+  right:8px;
+  padding:6px 10px;
+  border-radius:8px;
+  background:rgba(255,255,255,.06);
+  border:1px solid var(--line);
+  color:var(--muted);
+  font-size:10px;
+  font-weight:700;
+}
+.login-error{
+  font-size:11px;
+  color:#ff9cac;
+  line-height:1.7;
+  min-height:18px;
+}
+.setup-hint{
+  font-size:11px;
+  color:var(--muted);
+  line-height:1.75;
+  padding:13px 14px;
+  background:rgba(112,240,237,.05);
+  border:1px solid rgba(112,240,237,.2);
+  border-radius:13px;
+  margin-top:16px;
+}
+
+.app{
+  position:relative;
+  z-index:2;
+  display:grid;
+  grid-template-columns:255px minmax(0,1fr);
+  min-height:100vh;
+}
+.sidebar{
+  position:sticky;
+  top:0;
+  height:100vh;
+  padding:22px 15px;
+  border-right:1px solid rgba(255,255,255,.08);
+  background:rgba(8,13,24,.88);
+  backdrop-filter:blur(22px);
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+  overflow-y:auto;
+}
+.sidebar .brand{padding:0 9px}
+.side-label{
+  font-size:9px;
+  color:#667590;
+  letter-spacing:.18em;
+  font-weight:800;
+  padding:0 11px;
+  margin:4px 0 4px;
+}
+.side-nav{display:grid;gap:4px}
+.side-nav button{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  text-align:left;
+  border:1px solid transparent;
+  border-radius:12px;
+  background:transparent;
+  color:#9aa7c1;
+  padding:11px 12px;
+  font-size:11px;
+  font-weight:700;
+  transition:.2s;
+}
+.side-nav button:hover{
+  color:var(--text);
+  background:rgba(255,255,255,.04);
+}
+.side-nav button .ico{
+  width:19px;
+  text-align:center;
+  font-size:14px;
+  color:#7e8caf;
+}
+.side-nav button.active{
+  color:var(--cyan);
+  background:linear-gradient(100deg,rgba(112,240,237,.14),rgba(130,146,255,.08));
+  border-color:rgba(112,240,237,.25);
+}
+.side-nav button.active .ico{color:var(--cyan)}
+.side-bottom{margin-top:auto}
+.user-mini{
+  padding:13px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  overflow-wrap:anywhere;
+}
+.user-mini strong{font-size:11px;display:block;color:var(--cyan)}
+.user-mini small{font-size:9px;color:var(--muted);display:block;margin-top:4px}
+
+.main{
+  min-width:0;
+  padding:28px clamp(16px,3vw,36px) 60px;
+}
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  margin-bottom:26px;
+  flex-wrap:wrap;
+}
+.topbar h1{font-size:26px;letter-spacing:-.05em;margin:0}
+.topbar p{font-size:11px;color:var(--muted);margin:6px 0 0}
+.top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.connection{
+  font-size:9px;
+  color:var(--green);
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:5px 10px;
+  border-radius:99px;
+  background:rgba(133,243,176,.08);
+  border:1px solid rgba(133,243,176,.24);
+  font-weight:800;
+  letter-spacing:.08em;
+}
+.connection:before{
+  content:"";
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 12px var(--green);
+}
+
+.stats-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+  margin-bottom:22px;
+}
+.metric{
+  border-radius:18px;
+  padding:18px;
+  position:relative;
+  overflow:hidden;
+}
+.metric .label{font-size:10px;color:var(--muted);font-weight:800;letter-spacing:.06em}
+.metric .value{font-size:30px;font-weight:900;letter-spacing:-.05em;margin:10px 0 5px}
+.metric small{font-size:10px;color:#8392af}
+.panel{border-radius:20px;padding:22px;margin-bottom:18px}
+.panel-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom:17px;
+  flex-wrap:wrap;
+}
+.panel-head h2{font-size:17px;letter-spacing:-.04em;margin:0}
+.panel-head p{font-size:11px;color:var(--muted);line-height:1.7;margin:5px 0 0}
+.action-row{display:flex;gap:8px;flex-wrap:wrap}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 15px}
+.form-grid .full{grid-column:1/-1}
+.field input[type=checkbox]{width:16px;height:16px;accent-color:var(--cyan)}
+.check-field{display:flex;align-items:center;gap:8px;font-size:11px;color:#b5c1db;margin:12px 0;cursor:pointer}
+
+.table-wrap{overflow:auto;border:1px solid rgba(255,255,255,.08);border-radius:14px}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th,td{text-align:left;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.06);font-size:11px;vertical-align:middle}
+th{color:#8290ac;font-size:9px;text-transform:uppercase;letter-spacing:.12em;background:rgba(255,255,255,.03)}
+td{color:#dce4f4}
+tr:last-child td{border-bottom:0}
+.item-main{font-weight:800;font-size:11px;display:block}
+.item-sub{display:block;font-size:10px;color:var(--muted);margin-top:4px;max-width:390px;overflow-wrap:anywhere;line-height:1.5}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:8px;font-size:9px;font-weight:800;white-space:nowrap}
+.pill-green{background:rgba(133,243,176,.12);border:1px solid rgba(133,243,176,.28);color:var(--green)}
+.pill-amber{background:rgba(255,209,122,.12);border:1px solid rgba(255,209,122,.28);color:var(--amber)}
+.pill-red{background:rgba(255,133,151,.12);border:1px solid rgba(255,133,151,.28);color:#ff9cac}
+.pill-blue{background:rgba(130,146,255,.12);border:1px solid rgba(130,146,255,.28);color:#aebaff}
+.empty{padding:30px;text-align:center;color:var(--muted);font-size:11px;line-height:1.8}
+.notice{
+  border:1px solid rgba(112,240,237,.25);
+  background:rgba(112,240,237,.06);
+  color:#d3f8f7;
+  border-radius:14px;
+  padding:13px 16px;
+  font-size:11px;
+  line-height:1.75;
+  margin-bottom:16px;
+}
+.plan-row{
+  display:grid;
+  grid-template-columns:1.1fr 1fr .9fr .9fr;
+  gap:10px;
+  align-items:end;
+  padding:14px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.plan-row:last-child{border:0}
+.plan-row .field{margin:0}
+.plan-row .field label{font-size:9px}
+.plan-row .field input{padding:10px}
+.stock-controls{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:15px}
+.search{
+  width:min(320px,100%);
+  padding:11px 13px;
+  border-radius:11px;
+  background:#080d18;
+  border:1px solid var(--line);
+  color:#fff;
+  font-size:11px;
+  outline:none;
+}
+
+/* Admin Swipe Deck Preview for Gallery & Videos */
+.admin-deck-wrap{
+  position:relative;
+  overflow:hidden;
+  padding:10px 0 18px;
+}
+.admin-deck-track{
+  display:flex;
+  gap:14px;
+  overflow-x:auto;
+  scroll-snap-type:x mandatory;
+  scrollbar-width:none;
+  padding:4px 4px 12px;
+  cursor:grab;
+}
+.admin-deck-track::-webkit-scrollbar{display:none}
+.admin-deck-track.dragging{cursor:grabbing;scroll-snap-type:none}
+.admin-deck-card{
+  flex:0 0 240px;
+  scroll-snap-align:start;
+  border-radius:16px;
+  overflow:hidden;
+  border:1px solid var(--line);
+  background:#0b1120;
+  position:relative;
+  transition:transform .25s,border-color .25s;
+}
+.admin-deck-card:hover{
+  transform:translateY(-3px);
+  border-color:rgba(112,240,237,.5);
+}
+.admin-deck-media{
+  height:155px;
+  background:#070b14;
+  position:relative;
+  overflow:hidden;
+}
+.admin-deck-media img,.admin-deck-media video{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.admin-deck-meta{
+  padding:11px 13px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+}
+.admin-deck-meta strong{
+  font-size:11px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.modal-bg{
+  position:fixed;
+  z-index:80;
+  inset:0;
+  background:rgba(3,5,11,.78);
+  backdrop-filter:blur(10px);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+}
+.modal-bg.open{display:flex}
+.modal{
+  width:min(640px,100%);
+  max-height:90vh;
+  overflow:auto;
+  border-radius:22px;
+  padding:24px;
+}
+.modal h2{font-size:19px;margin:0;letter-spacing:-.04em}
+.modal p{font-size:11px;color:var(--muted);line-height:1.7}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+
+.toast{
+  position:fixed;
+  z-index:120;
+  left:50%;
+  bottom:24px;
+  transform:translate(-50%,20px);
+  opacity:0;
+  pointer-events:none;
+  border:1px solid rgba(112,240,237,.45);
+  background:#132138;
+  padding:13px 18px;
+  border-radius:14px;
+  font-size:11px;
+  font-weight:600;
+  box-shadow:0 15px 50px rgba(0,0,0,.55);
+  transition:.25s;
+  max-width:calc(100% - 26px);
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.tagline{font-size:9px;color:var(--muted);letter-spacing:.14em;margin-top:3px}
+.key-value{font-family:ui-monospace,SFMono-Regular,monospace;overflow-wrap:anywhere;max-width:250px}
+.settings-save{
+  position:sticky;
+  bottom:8px;
+  padding:12px 0;
+  background:linear-gradient(transparent,#0b1120 35%);
+  display:flex;
+  justify-content:flex-end;
+  z-index:5;
+}
+.code-box{
+  background:#060a12;
+  border:1px solid var(--line);
+  border-radius:13px;
+  padding:14px;
+  font-family:ui-monospace,SFMono-Regular,monospace;
+  font-size:11px;
+  color:#bfe8ff;
+  overflow-x:auto;
+  white-space:pre;
+  line-height:1.6;
+  max-height:300px;
+}
+
+/* Floating Scroll Up/Down Widget */
+.scroll-float{
+  position:fixed;
+  right:18px;
+  bottom:22px;
+  z-index:45;
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+}
+.scroll-btn{
+  width:38px;
+  height:38px;
+  border-radius:12px;
+  border:1px solid var(--line);
+  background:rgba(13,20,36,.86);
+  color:var(--cyan);
+  display:grid;
+  place-items:center;
+  font-size:14px;
+  font-weight:900;
+  backdrop-filter:blur(12px);
+  box-shadow:0 10px 26px rgba(0,0,0,.35);
+  transition:.2s;
+}
+.scroll-btn:hover{
+  border-color:var(--cyan);
+  transform:translateY(-2px);
+}
+
+@media(max-width:930px){
+  .app{grid-template-columns:74px minmax(0,1fr)}
+  .sidebar{padding:18px 9px}
+  .sidebar .brand{padding:0;justify-content:center}
+  .sidebar .brand-text,.side-label,.side-nav button .nav-text,.user-mini{display:none}
+  .side-nav button{justify-content:center;padding:13px 5px}
+  .side-nav button .ico{font-size:17px}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .side-bottom{display:flex;justify-content:center}
+  .form-grid{grid-template-columns:1fr}
+  .plan-row{grid-template-columns:1fr 1fr}
+}
+@media(max-width:640px){
+  .app{grid-template-columns:1fr}
+  .sidebar{
+    position:fixed;
+    z-index:40;
+    top:auto;
+    bottom:0;
+    left:0;
+    right:0;
+    width:100%;
+    height:auto;
+    padding:7px 6px calc(7px + env(safe-area-inset-bottom));
+    border-right:0;
+    border-top:1px solid rgba(255,255,255,.1);
+    display:block;
+    background:rgba(9,14,25,.95);
+    overflow-x:auto;
+  }
+  .sidebar .brand,.sidebar .side-label,.sidebar .side-bottom{display:none}
+  .side-nav{display:flex;gap:3px;min-width:max-content}
+  .side-nav button{
+    flex:0 0 auto;
+    min-width:62px;
+    display:grid;
+    justify-items:center;
+    gap:4px;
+    padding:7px 6px;
+    border-radius:10px;
+    font-size:8px;
+  }
+  .side-nav button .ico{font-size:14px;width:auto}
+  .side-nav button .nav-text{display:block;font-size:8px}
+  .main{padding:18px 13px 104px}
+  .topbar{align-items:flex-start;flex-direction:column;margin-bottom:18px}
+  .topbar h1{font-size:22px}
+  .top-actions{width:100%;justify-content:space-between}
+  .stats-grid{gap:9px}
+  .metric{padding:14px;border-radius:14px}
+  .metric .value{font-size:23px}
+  .panel{padding:15px;border-radius:16px}
+  .panel-head{flex-direction:column}
+  .plan-row{grid-template-columns:1fr 1fr;gap:8px}
+  .stock-controls{grid-template-columns:1fr}
+  .login-card{padding:24px}
+  .scroll-float{bottom:78px;right:12px}
+}
+</style>
+</head>
+<body>
+<canvas id="shaderCanvas"></canvas>
+
+<!-- Circular Page Loader -->
+<div id="pageLoader" class="page-loader">
+  <div class="loader-circle-wrap">
+    <div class="loader-ring-outer"></div>
+    <div class="loader-ring-inner"></div>
+    <svg class="loader-svg" viewBox="0 0 136 136">
+      <defs>
+        <linearGradient id="adminLoaderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#70f0ed"/>
+          <stop offset="50%" stop-color="#8292ff"/>
+          <stop offset="100%" stop-color="#a58bff"/>
+        </linearGradient>
+      </defs>
+      <circle class="loader-track" cx="68" cy="68" r="58"></circle>
+      <circle class="loader-bar" id="loaderBar" cx="68" cy="68" r="58"></circle>
+    </svg>
+    <div class="loader-core">
+      <div class="loader-logo">K</div>
+      <div class="loader-pct" id="loaderPct">0%</div>
+    </div>
+  </div>
+  <div class="loader-text" id="loaderText">KHỞI TẠO HỆ THỐNG QUẢN TRỊ…</div>
+</div>
+
+<!-- Fixed Password Login Screen -->
+<section id="loginScreen" class="login-screen">
+  <div class="login-card glass scroll-reveal in-view">
+    <div class="brand">
+      <span class="brand-icon">K</span>
+      <span class="brand-text">KEYNOVA<div class="tagline">ADMIN CONSOLE</div></span>
+    </div>
+    <h1>Đăng nhập quản trị</h1>
+    <p>Hệ thống quản trị trực tiếp KEYNOVA. Nhập mật khẩu cố định để mở bảng điều khiển trung tâm và đồng bộ dữ liệu thời gian thực với Firebase.</p>
+    <form id="loginForm">
+      <div class="field">
+        <label for="password">MẬT KHẨU QUẢN TRỊ CỐ ĐỊNH</label>
+        <div class="pass-wrap">
+          <input id="password" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu quản trị…" required>
+          <button type="button" class="pass-toggle" id="togglePassBtn">Hiện</button>
+        </div>
+      </div>
+      <div id="loginError" class="login-error"></div>
+      <button class="btn primary" id="loginButton" type="submit" style="width:100%">Đăng nhập an toàn ↗</button>
+    </form>
+    <div class="setup-hint">
+      <b>Chế độ mật khẩu cố định:</b> Không cần tạo tài khoản admin trên Firebase. Toàn bộ dữ liệu, ảnh mẫu, video mẫu, kho key và đơn hàng được tích hợp gọn trong 2 file duy nhất (<code>index.html</code> &amp; <code>admin.html</code>).
+    </div>
+    <div style="margin-top:18px;display:flex;justify-content:space-between;align-items:center">
+      <button type="button" class="btn secondary small" id="backToStoreBtn">← Quay lại cửa hàng</button>
+      
+    </div>
+  </div>
+</section>
+
+<!-- Main Admin App -->
+<div id="app" class="app hidden">
+  <aside class="sidebar">
+    <a class="brand" href="#overview" id="brandHomeLink">
+      <span class="brand-icon">K</span>
+      <span class="brand-text">KEYNOVA<div class="tagline">ADMIN CONSOLE</div></span>
+    </a>
+    <div>
+      <div class="side-label">WORKSPACE</div>
+      <nav class="side-nav" id="sideNav">
+        <button class="active" data-panel="overview"><span class="ico">◫</span><span class="nav-text">Tổng quan</span></button>
+        <button data-panel="settings"><span class="ico">⚙</span><span class="nav-text">Nội dung trang</span></button>
+        <button data-panel="categories"><span class="ico">▦</span><span class="nav-text">Danh mục</span></button>
+        <button data-panel="products"><span class="ico">◈</span><span class="nav-text">Sản phẩm</span></button>
+        <button data-panel="gallery"><span class="ico">▧</span><span class="nav-text">Ảnh mẫu</span></button>
+        <button data-panel="videos"><span class="ico">▶</span><span class="nav-text">Video mẫu</span></button>
+        <button data-panel="reviews"><span class="ico">☆</span><span class="nav-text">Feedback</span></button>
+        <button data-panel="faqs"><span class="ico">?</span><span class="nav-text">FAQ</span></button>
+        <button data-panel="plans"><span class="ico">◷</span><span class="nav-text">Bảng giá key</span></button>
+        <button data-panel="keys"><span class="ico">⌘</span><span class="nav-text">Kho key</span></button>
+        <button data-panel="freeOffers"><span class="ico">✦</span><span class="nav-text">Key miễn phí</span></button>
+        <button data-panel="orders"><span class="ico">▤</span><span class="nav-text">Đơn hàng</span></button>
+        <button data-panel="rules"><span class="ico">⚡</span><span class="nav-text">Rules tích hợp</span></button>
+      </nav>
+    </div>
+    <div class="side-bottom">
+      <div class="user-mini">
+        <strong id="adminEmail">Master Admin</strong>
+        <small>Xác thực mật khẩu cố định</small>
+        <button class="btn secondary small" style="margin-top:10px;width:100%" id="logoutButton">Đăng xuất</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar scroll-reveal in-view">
+      <div>
+        <div class="connection" id="connectionStatus">FIREBASE REALTIME CONNECTED</div>
+        <h1 id="pageTitle" style="margin-top:10px">Tổng quan</h1>
+        <p id="pageSub">Theo dõi kho key, sản phẩm, ảnh mẫu, video mẫu và đơn hàng trong một nơi.</p>
+      </div>
+      <div class="top-actions">
+        <button type="button" class="btn secondary" id="openStoreBtn">Mở cửa hàng ↗</button>
+        <button type="button" class="btn secondary" id="topLogout">Đăng xuất</button>
+      </div>
+    </header>
+    <section id="panelContent"></section>
+  </main>
+</div>
+
+<!-- Editor Modal -->
+<div class="modal-bg" id="editorBg">
+  <section class="modal glass">
+    <div class="modal-header">
+      <h2 id="editorTitle">Thêm mục</h2>
+      <button type="button" class="btn secondary small" id="editorClose">Đóng ✕</button>
+    </div>
+    <p id="editorHelp">Nội dung được lưu trực tiếp vào Firebase Realtime Database.</p>
+    <form id="editorForm">
+      <div id="editorFields" class="form-grid"></div>
+      <div class="action-row" style="justify-content:flex-end;margin-top:16px">
+        <button type="button" class="btn secondary" id="editorCancel">Huỷ</button>
+        <button type="submit" class="btn primary">Lưu vào Firebase</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<!-- In-page Confirm Modal (replaces window.confirm) -->
+<div class="modal-bg" id="confirmBg">
+  <section class="modal glass" style="width:min(420px,100%)">
+    <div class="modal-header">
+      <h2>Xác nhận thao tác</h2>
+      <button type="button" class="btn secondary small" id="confirmCloseBtn">✕</button>
+    </div>
+    <p id="confirmMessage" style="font-size:12px;color:var(--text);line-height:1.75;margin:10px 0 18px"></p>
+    <div class="action-row" style="justify-content:flex-end">
+      <button type="button" class="btn secondary" id="confirmCancelBtn">Huỷ</button>
+      <button type="button" class="btn primary" id="confirmOkBtn">Đồng ý</button>
+    </div>
+  </section>
+</div>
+
+<!-- Scroll Up / Down Floating Controls -->
+<div class="scroll-float">
+  <button type="button" class="scroll-btn" id="scrollUpBtn" aria-label="Lướt lên đầu trang" title="Lướt lên">↑</button>
+  <button type="button" class="scroll-btn" id="scrollDownBtn" aria-label="Lướt xuống cuối trang" title="Lướt xuống">↓</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
+import {getDatabase,ref,get,set,update,remove,push,onValue,runTransaction} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js';
+import {getStorage,ref as storageRef,uploadBytes,getDownloadURL} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js';
+import {getAuth,signInAnonymously,signOut} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+
+const ADMIN_FIXED_PASS = 'chanbomaydi';
+const SESSION_KEY = 'keynova_admin_unlocked_v2';
+
+const firebaseConfig = {
+  apiKey: 'AIzaSyAVuB8m14zkMPs-JTLAKB0Bp18QBKAMBt4',
+  authDomain: 'ideo-dd376.firebaseapp.com',
+  databaseURL: 'https://ideo-dd376-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId: 'ideo-dd376',
+  storageBucket: 'ideo-dd376.firebasestorage.app',
+  messagingSenderId: '689163185',
+  appId: '1:689163185:web:af4091213001180f364b90',
+  measurementId: 'G-QP54CZ2BJT'
+};
+
+const appFB = initializeApp(firebaseConfig);
+const db = getDatabase(appFB);
+const auth = getAuth(appFB);
+const storage = getStorage(appFB);
+
+let currentUser = null,
+    store = {},
+    orders = {},
+    vault = {},
+    activePanel = 'overview',
+    editorCollection = '',
+    editorId = '',
+    toastTimer,
+    dataSubscribed = false;
+
+const $ = id => document.getElementById(id);
+const entries = o => Object.entries(o || {}).map(([id, v]) => ({id, ...(v || {})}));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => new Intl.NumberFormat('vi-VN', {style:'currency', currency:'VND', maximumFractionDigits:0}).format(Number(n) || 0);
+
+/* Anti-Copy & Selection Protection */
+document.addEventListener('contextmenu', e => {
+  if (!e.target.closest('input, textarea, .allow-select')) e.preventDefault();
+});
+document.addEventListener('selectstart', e => {
+  if (!e.target.closest('input, textarea, .allow-select')) e.preventDefault();
+});
+document.addEventListener('dragstart', e => {
+  if (!e.target.closest('input, textarea')) e.preventDefault();
+});
+document.addEventListener('keydown', e => {
+  const inInput = e.target && e.target.closest && e.target.closest('input, textarea, .allow-select');
+  if (!inInput && (e.ctrlKey || e.metaKey) && ['c','u','s'].includes(e.key.toLowerCase())) {
+    e.preventDefault();
+  }
+  if (e.key === 'F12' || ((e.ctrlKey || e.metaKey) && e.shiftKey && ['i','j','c'].includes(e.key.toLowerCase()))) {
+    e.preventDefault();
+  }
+});
+
+/* Circular Page Loader Controller */
+let loaderProgress = 0;
+const loaderBar = $('loaderBar');
+const loaderPct = $('loaderPct');
+const loaderText = $('loaderText');
+function setLoaderProgress(val, text) {
+  loaderProgress = Math.min(100, Math.max(loaderProgress, val));
+  if (loaderBar) {
+    const circumference = 364;
+    loaderBar.style.strokeDashoffset = String(circumference - (circumference * loaderProgress) / 100);
+  }
+  if (loaderPct) loaderPct.textContent = Math.round(loaderProgress) + '%';
+  if (text && loaderText) loaderText.textContent = text;
+  if (loaderProgress >= 100) {
+    setTimeout(() => $('pageLoader')?.classList.add('loaded'), 240);
+  }
+}
+let bootTick = setInterval(() => {
+  if (loaderProgress < 85) setLoaderProgress(loaderProgress + 14, 'ĐANG TẢI DỮ LIỆU…');
+}, 110);
+setTimeout(() => {
+  clearInterval(bootTick);
+  setLoaderProgress(100, 'HOÀN TẤT');
+}, 950);
+
+/* Real WebGL GLSL Background Shader */
+function initWebGLShader() {
+  const canvas = $('shaderCanvas');
+  if (!canvas) return;
+  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+
+  const vsSource = `
+    attribute vec2 a_position;
+    void main() {
+      gl_Position = vec4(a_position, 0.0, 1.0);
+    }
+  `;
+  const fsSource = `
+    precision highp float;
+    uniform vec2 u_resolution;
+    uniform float u_time;
+    uniform vec2 u_mouse;
+    uniform float u_scroll;
+
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+    }
+    float noise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      vec2 u = f * f * (3.0 - 2.0 * f);
+      return mix(
+        mix(hash(i + vec2(0.0, 0.0)), hash(i + vec2(1.0, 0.0)), u.x),
+        mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x),
+        u.y
+      );
+    }
+    float fbm(vec2 p) {
+      float v = 0.0;
+      float a = 0.5;
+      mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);
+      for (int i = 0; i < 5; i++) {
+        v += a * noise(p);
+        p = rot * p * 2.02 + vec2(0.12 * u_time, -0.08 * u_time);
+        a *= 0.5;
+      }
+      return v;
+    }
+    void main() {
+      vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+      vec2 p = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / min(u_resolution.x, u_resolution.y);
+      p.y -= u_scroll * 0.15;
+
+      vec2 m = (u_mouse - 0.5) * 0.65;
+      float dMouse = length(p - m);
+
+      vec2 q = vec2(fbm(p * 1.6 + u_time * 0.06), fbm(p * 1.6 + vec2(2.4, 1.3)));
+      vec2 r = vec2(
+        fbm(p * 2.1 + 1.8 * q + vec2(1.7, 9.2) + 0.11 * u_time),
+        fbm(p * 2.1 + 1.8 * q + vec2(8.3, 2.8) + 0.09 * u_time)
+      );
+      float f = fbm(p * 1.8 + r);
+
+      vec3 bg = vec3(0.027, 0.039, 0.072);
+      vec3 cyan = vec3(0.439, 0.941, 0.929);
+      vec3 blue = vec3(0.443, 0.549, 1.0);
+      vec3 violet = vec3(0.647, 0.545, 1.0);
+
+      vec3 col = bg;
+      col = mix(col, blue * 0.25, clamp(f * f * 1.6, 0.0, 1.0));
+      col = mix(col, cyan * 0.22, clamp(length(q) * 0.65, 0.0, 1.0));
+      col = mix(col, violet * 0.18, clamp(r.x * 0.8, 0.0, 1.0));
+
+      float glow = 0.035 / (dMouse + 0.22);
+      col += cyan * glow * 0.22;
+
+      vec2 grid = abs(fract(p * 8.0) - 0.5) / fwidth(p * 8.0 + 0.001);
+      float line = min(grid.x, grid.y);
+      float gridMask = (1.0 - min(line, 1.0)) * 0.035 * smoothstep(1.2, 0.1, length(p));
+      col += cyan * gridMask;
+
+      col *= 1.0 - 0.28 * dot(uv - 0.5, uv - 0.5);
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `;
+
+  function compile(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return gl.getShaderParameter(s, gl.COMPILE_STATUS) ? s : null;
+  }
+  const vs = compile(gl.VERTEX_SHADER, vsSource);
+  const fs = compile(gl.FRAGMENT_SHADER, fsSource);
+  if (!vs || !fs) return;
+
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+  gl.useProgram(prog);
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+  const posLoc = gl.getAttribLocation(prog, 'a_position');
+  gl.enableVertexAttribArray(posLoc);
+  gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+  const uRes = gl.getUniformLocation(prog, 'u_resolution');
+  const uTime = gl.getUniformLocation(prog, 'u_time');
+  const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+  const uScroll = gl.getUniformLocation(prog, 'u_scroll');
+
+  let mouseX = 0.5, mouseY = 0.5, targetX = 0.5, targetY = 0.5;
+  window.addEventListener('pointermove', e => {
+    targetX = e.clientX / Math.max(1, window.innerWidth);
+    targetY = 1.0 - (e.clientY / Math.max(1, window.innerHeight));
+  });
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const start = performance.now();
+  function render(now) {
+    mouseX += (targetX - mouseX) * 0.06;
+    mouseY += (targetY - mouseY) * 0.06;
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+    gl.uniform1f(uTime, (now - start) * 0.001);
+    gl.uniform2f(uMouse, mouseX, mouseY);
+    gl.uniform1f(uScroll, window.scrollY / Math.max(1, window.innerHeight));
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+}
+initWebGLShader();
+
+/* Bidirectional Scroll Up / Scroll Down Reveal Engine */
+let lastScrollY = window.scrollY;
+let scrollDir = 'down';
+window.addEventListener('scroll', () => {
+  const y = window.scrollY;
+  scrollDir = y >= lastScrollY ? 'down' : 'up';
+  lastScrollY = y;
+}, {passive: true});
+
+const scrollObserver = new IntersectionObserver(entriesList => {
+  entriesList.forEach(entry => {
+    const el = entry.target;
+    if (entry.isIntersecting) {
+      el.classList.toggle('from-top', scrollDir === 'up');
+      requestAnimationFrame(() => el.classList.add('in-view'));
+    } else {
+      el.classList.remove('in-view');
+      el.classList.toggle('from-top', entry.boundingClientRect.top < 0);
+    }
+  });
+}, {threshold: 0.08, rootMargin: '0px 0px -24px 0px'});
+
+function observeScrollElements() {
+  document.querySelectorAll('.panel, .metric, .notice, .admin-deck-card').forEach(el => {
+    if (!el.classList.contains('scroll-reveal')) {
+      el.classList.add('scroll-reveal');
+      scrollObserver.observe(el);
+    }
+  });
+}
+
+$('scrollUpBtn')?.addEventListener('click', () => window.scrollTo({top: 0, behavior: 'smooth'}));
+$('scrollDownBtn')?.addEventListener('click', () => window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'}));
+
+/* In-page Custom Confirmation Dialog */
+let confirmResolver = null;
+function askConfirm(msg) {
+  return new Promise(resolve => {
+    confirmResolver = resolve;
+    $('confirmMessage').textContent = msg;
+    $('confirmBg').classList.add('open');
+  });
+}
+function closeConfirm(result) {
+  $('confirmBg').classList.remove('open');
+  if (confirmResolver) {
+    const r = confirmResolver;
+    confirmResolver = null;
+    r(result);
+  }
+}
+$('confirmOkBtn').addEventListener('click', () => closeConfirm(true));
+$('confirmCancelBtn').addEventListener('click', () => closeConfirm(false));
+$('confirmCloseBtn').addEventListener('click', () => closeConfirm(false));
+$('confirmBg').addEventListener('click', e => {
+  if (e.target === $('confirmBg')) closeConfirm(false);
+});
+
+/* Store Navigation Buttons */
+function goToStore(newTab = false) {
+  const target = 'index' + '.html';
+  if (newTab) window.open(target, '_blank', 'noopener');
+  else window.location.assign(target);
+}
+$('backToStoreBtn').addEventListener('click', () => goToStore(false));
+$('openStoreBtn').addEventListener('click', () => goToStore(true));
+$('brandHomeLink').addEventListener('click', e => {
+  e.preventDefault();
+  renderPanel('overview');
+});
+
+/* Password Show / Hide */
+$('togglePassBtn').addEventListener('click', () => {
+  const inp = $('password');
+  const isPass = inp.type === 'password';
+  inp.type = isPass ? 'text' : 'password';
+  $('togglePassBtn').textContent = isPass ? 'Ẩn' : 'Hiện';
+});
+
+const presets = [
+  {id:'1d',label:'1 ngày',name:'Key 1 ngày',days:1,price:10000,active:true,sortOrder:1},
+  {id:'3d',label:'3 ngày',name:'Key 3 ngày',days:3,price:20000,active:true,sortOrder:2},
+  {id:'7d',label:'7 ngày',name:'Key 7 ngày',days:7,price:35000,active:true,sortOrder:3},
+  {id:'30d',label:'30 ngày',name:'Key 30 ngày',days:30,price:80000,active:true,sortOrder:4},
+  {id:'90d',label:'90 ngày',name:'Key 90 ngày',days:90,price:180000,active:true,sortOrder:5},
+  {id:'lifetime',label:'Vĩnh viễn',name:'Key vĩnh viễn',days:0,price:350000,active:true,sortOrder:6}
+];
+
+const settingFields = [
+  ['siteTitle','Tên shop','text'],
+  ['brandTagline','Dòng nhỏ dưới tên shop','text'],
+  ['heroBadge','Dòng nhãn hero','text'],
+  ['heroTitle','Tiêu đề hero dòng 1','text'],
+  ['heroHighlight','Tiêu đề hero dòng 2','text'],
+  ['heroDescription','Mô tả hero','textarea'],
+  ['heroPrimary','Nút chính hero','text'],
+  ['heroSecondary','Nút phụ hero','text'],
+  ['announcement','Thông báo đầu trang (để trống để ẩn)','text'],
+  ['categoriesTitle','Tiêu đề danh mục','text'],
+  ['categoriesDescription','Mô tả danh mục','textarea'],
+  ['categoryBannerTitle','Tiêu đề banner danh mục','text'],
+  ['categoryBannerText','Mô tả banner danh mục','textarea'],
+  ['productsTitle','Tiêu đề sản phẩm','text'],
+  ['productsDescription','Mô tả sản phẩm','textarea'],
+  ['galleryTitle','Tiêu đề ảnh mẫu','text'],
+  ['galleryDescription','Mô tả ảnh mẫu','textarea'],
+  ['videosTitle','Tiêu đề video mẫu','text'],
+  ['videosDescription','Mô tả video mẫu','textarea'],
+  ['plansTitle','Tiêu đề bảng giá','text'],
+  ['plansDescription','Mô tả bảng giá','textarea'],
+  ['freeTitle','Tiêu đề key miễn phí','text'],
+  ['freeDescription','Mô tả key miễn phí','textarea'],
+  ['reviewsTitle','Tiêu đề feedback','text'],
+  ['reviewsDescription','Mô tả feedback','textarea'],
+  ['faqTitle','Tiêu đề FAQ','text'],
+  ['faqDescription','Mô tả FAQ','textarea'],
+  ['contactTitle','Tiêu đề hỗ trợ','text'],
+  ['contactDescription','Mô tả hỗ trợ','textarea'],
+  ['contactButtonText','Nhãn nút liên hệ','text'],
+  ['paymentInstructions','Hướng dẫn thanh toán / chuyển khoản','textarea'],
+  ['paymentQrUrl','URL QR thanh toán (hoặc tải QR)','imageurl'],
+  ['myOrdersTitle','Tiêu đề khu vực đơn hàng','text'],
+  ['myOrdersDescription','Mô tả khu vực đơn hàng','textarea'],
+  ['statProductsLabel','Nhãn thống kê sản phẩm','text'],
+  ['statCategoriesLabel','Nhãn thống kê danh mục','text'],
+  ['statRequestsValue','Giá trị thống kê thứ ba','text'],
+  ['statRequestsLabel','Nhãn thống kê thứ ba','text'],
+  ['supportUrl','Link hỗ trợ (Zalo/Facebook/Telegram)','url'],
+  ['navCategories','Tên mục menu: Danh mục','text'],
+  ['navProducts','Tên mục menu: Sản phẩm','text'],
+  ['navGallery','Tên mục menu: Ảnh mẫu','text'],
+  ['navVideos','Tên mục menu: Video mẫu','text'],
+  ['navReviews','Tên mục menu: Đánh giá','text'],
+  ['navPricing','Tên mục menu: Bảng giá','text'],
+  ['navFree','Tên mục menu: Key free','text'],
+  ['navMyOrders','Tên mục menu: Đơn của tôi','text'],
+  ['footerText','Nội dung chân trang','textarea'],
+  ['copyrightText','Dòng bản quyền','text']
+];
+
+const schemas = {
+  categories: {
+    title: 'Danh mục',
+    fields: [
+      ['name','Tên danh mục','text',true],
+      ['description','Mô tả','textarea'],
+      ['imageUrl','URL ảnh danh mục','url'],
+      ['icon','Ký tự/icon (1 ký tự)','text'],
+      ['sortOrder','Thứ tự hiển thị','number'],
+      ['active','Hiển thị công khai','checkbox']
+    ]
+  },
+  products: {
+    title: 'Sản phẩm',
+    fields: [
+      ['name','Tên sản phẩm/menu','text',true],
+      ['description','Mô tả sản phẩm','textarea'],
+      ['categoryId','Danh mục','selectCategories',true],
+      ['imageUrl','URL ảnh sản phẩm','url'],
+      ['badge','Nhãn nhỏ (VD: BÁN CHẠY)','text'],
+      ['priceFrom','Giá hiển thị từ (VND)','number'],
+      ['oldPrice','Giá cũ (VND)','number'],
+      ['sortOrder','Thứ tự hiển thị','number'],
+      ['active','Hiển thị công khai','checkbox']
+    ]
+  },
+  gallery: {
+    title: 'Ảnh mẫu',
+    fields: [
+      ['title','Tiêu đề bộ ảnh / thẻ ảnh','text',true],
+      ['imageUrl','Danh sách URL ảnh mẫu (mỗi dòng 1 URL hoặc tải nhiều ảnh bên dưới)','multi_image',true],
+      ['categoryId','Danh mục liên quan','selectCategories'],
+      ['sortOrder','Thứ tự hiển thị','number'],
+      ['active','Hiển thị công khai','checkbox']
+    ]
+  },
+  videos: {
+    title: 'Video mẫu',
+    fields: [
+      ['title','Tiêu đề video mẫu','text',true],
+      ['videoUrl','Danh sách URL video (MP4/WebM/YouTube mỗi dòng 1 link hoặc tải nhiều video)','multi_video',true],
+      ['posterUrl','URL ảnh bìa (Thumbnail tuỳ chọn)','url'],
+      ['categoryId','Danh mục liên quan','selectCategories'],
+      ['sortOrder','Thứ tự hiển thị','number'],
+      ['active','Hiển thị công khai','checkbox']
+    ]
+  },
+  reviews: {
+    title: 'Feedback',
+    fields: [
+      ['name','Tên khách hàng','text',true],
+      ['avatarUrl','URL ảnh đại diện (tuỳ chọn)','url'],
+      ['rating','Số sao (1–5)','number',true],
+      ['content','Nội dung đánh giá','textarea',true],
+      ['productId','Sản phẩm liên quan','selectProducts'],
+      ['label','Nhãn phụ','text'],
+      ['active','Hiển thị công khai','checkbox']
+    ]
+  },
+  freeOffers: {
+    title: 'Ưu đãi key free',
+    fields: [
+      ['title','Tên chương trình','text',true],
+      ['description','Mô tả / hướng dẫn','textarea'],
+      ['imageUrl','URL ảnh chương trình','url'],
+      ['shortlinkUrl','Link nhiệm vụ / shortlink','url',true],
+      ['productId','Sản phẩm được nhận','selectProducts',true],
+      ['planId','Thời hạn key','selectPlans',true],
+      ['sortOrder','Thứ tự hiển thị','number'],
+      ['active','Hiển thị công khai','checkbox']
+    ]
+  },
+  faqs: {
+    title: 'Câu hỏi thường gặp',
+    fields: [
+      ['question','Câu hỏi','text',true],
+      ['answer','Câu trả lời','textarea',true],
+      ['sortOrder','Thứ tự hiển thị','number'],
+      ['active','Hiển thị công khai','checkbox']
+    ]
+  }
+};
+
+function toast(s) {
+  const t = $('toast');
+  t.textContent = s;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+async function copyText(str, label = 'Đã sao chép vào bộ nhớ tạm.') {
+  try {
+    await navigator.clipboard.writeText(str);
+    toast(label);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = str;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    toast(label);
+  }
+}
+
+function currentSettings() {
+  return store.settings || {};
+}
+
+function flattenOrders() {
+  const rows = [];
+  for (const [uid, obj] of Object.entries(orders || {})) {
+    for (const [id, o] of Object.entries(obj || {})) {
+      rows.push({uid, id, ...o});
+    }
+  }
+  return rows.sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
+}
+
+function stockCount(status, productId = '', planId = '') {
+  let n = 0;
+  for (const [pId, byPlan] of Object.entries(vault || {})) {
+    if (productId && pId !== productId) continue;
+    for (const [plId, items] of Object.entries(byPlan || {})) {
+      if (planId && plId !== planId) continue;
+      for (const it of Object.values(items || {})) {
+        if ((it?.status || 'available') === status) n++;
+      }
+    }
+  }
+  return n;
+}
+
+function showApp(user) {
+  currentUser = user || {uid: 'admin-fixed', email: 'Master Admin (chanbomaydi)'};
+  $('loginScreen').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  $('adminEmail').textContent = currentUser.email || 'Master Admin';
+  subscribeData();
+  setTimeout(() => renderPanel(activePanel), 60);
+}
+
+function subscribeData() {
+  if (dataSubscribed) return;
+  dataSubscribed = true;
+  onValue(ref(db, 'store'), s => {
+    store = s.val() || {};
+    setLoaderProgress(100, 'ĐÃ ĐỒNG BỘ FIREBASE');
+    renderPanel(activePanel);
+  }, e => {
+    console.warn(e);
+    $('connectionStatus').textContent = 'CHECK RULES / OFFLINE';
+  });
+  onValue(ref(db, 'orders'), s => {
+    orders = s.val() || {};
+    if (activePanel === 'orders' || activePanel === 'overview') renderPanel(activePanel);
+  }, e => console.warn('Orders read notice', e));
+  onValue(ref(db, 'keyVault'), s => {
+    vault = s.val() || {};
+    if (activePanel === 'keys' || activePanel === 'overview') renderPanel(activePanel);
+  }, e => console.warn('Vault read notice', e));
+}
+
+const panelInfo = {
+  overview: ['Tổng quan', 'Theo dõi sản phẩm, ảnh mẫu, video mẫu, kho key và các yêu cầu khách hàng.'],
+  settings: ['Nội dung trang', 'Điều chỉnh văn bản, liên kết và các tiêu đề hiển thị trên trang chủ.'],
+  categories: ['Danh mục', 'Thêm, sửa, ẩn hoặc xoá danh mục sản phẩm.'],
+  products: ['Sản phẩm & menu', 'Quản lý sản phẩm sẽ xuất hiện trong cửa hàng.'],
+  gallery: ['Ảnh mẫu (Thẻ vuốt ngang)', 'Tải lên một hoặc nhiều ảnh mẫu cùng lúc. Khi có nhiều ảnh sẽ hiển thị dạng thẻ cạnh nhau vuốt mượt mà.'],
+  videos: ['Video mẫu (Thẻ vuốt ngang)', 'Tải lên hoặc dán link nhiều video mẫu. Hiển thị dạng thẻ video cạnh nhau vuốt đổi video như ảnh mẫu.'],
+  reviews: ['Feedback / đánh giá', 'Thêm đánh giá và chọn những feedback được công khai.'],
+  plans: ['Bảng giá key', 'Tự chỉnh giá cho các hạn 1/3/7/30/90 ngày và vĩnh viễn.'],
+  keys: ['Kho key', 'Nhập key theo sản phẩm và thời hạn.'],
+  freeOffers: ['Key miễn phí', 'Tạo chương trình link nhiệm vụ để khách gửi yêu cầu nhận key free.'],
+  faqs: ['FAQ / câu hỏi thường gặp', 'Cập nhật câu hỏi và câu trả lời hiển thị ở cuối trang khách.'],
+  orders: ['Đơn hàng & giao key', 'Xác nhận thanh toán, giao key từ kho hoặc từ chối yêu cầu.'],
+  rules: ['Rules Firebase tích hợp', 'Toàn bộ cấu hình Database & Storage Rules đã được tích hợp sẵn tại đây để chỉ cần dùng 2 file index.html và admin.html.']
+};
+
+function renderPanel(name) {
+  activePanel = name;
+  const info = panelInfo[name] || panelInfo.overview;
+  $('pageTitle').textContent = info[0];
+  $('pageSub').textContent = info[1];
+  document.querySelectorAll('#sideNav button').forEach(b => b.classList.toggle('active', b.dataset.panel === name));
+  const f = {
+    overview: renderOverview,
+    settings: renderSettingsPanel,
+    categories: () => renderCollection('categories'),
+    products: () => renderCollection('products'),
+    gallery: () => renderCollection('gallery'),
+    videos: () => renderCollection('videos'),
+    reviews: () => renderCollection('reviews'),
+    faqs: () => renderCollection('faqs'),
+    plans: renderPlansPanel,
+    keys: renderKeysPanel,
+    freeOffers: () => renderCollection('freeOffers'),
+    orders: renderOrdersPanel,
+    rules: renderRulesPanel
+  };
+  $('panelContent').innerHTML = (f[name] || renderOverview)();
+  bindPanelEvents(name);
+  observeScrollElements();
+}
+
+function enableDragScroll(track) {
+  if (!track) return;
+  let isDown = false, startX = 0, scrollLeft = 0;
+  track.addEventListener('mousedown', e => {
+    isDown = true;
+    track.classList.add('dragging');
+    startX = e.pageX - track.offsetLeft;
+    scrollLeft = track.scrollLeft;
+  });
+  track.addEventListener('mouseleave', () => {
+    isDown = false;
+    track.classList.remove('dragging');
+  });
+  track.addEventListener('mouseup', () => {
+    isDown = false;
+    track.classList.remove('dragging');
+  });
+  track.addEventListener('mousemove', e => {
+    if (!isDown) return;
+    e.preventDefault();
+    const x = e.pageX - track.offsetLeft;
+    track.scrollLeft = scrollLeft - (x - startX) * 1.4;
+  });
+}
+
+function bindPanelEvents(name) {
+  if (name === 'settings') {
+    $('settingsForm')?.addEventListener('submit', saveSettings);
+    $('seedDefaults')?.addEventListener('click', seedDefaults);
+  }
+  if (['categories','products','gallery','videos','reviews','freeOffers','faqs'].includes(name)) {
+    $('addItem')?.addEventListener('click', () => openEditor(name));
+    document.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => openEditor(name, b.dataset.edit)));
+    document.querySelectorAll('[data-delete]').forEach(b => b.addEventListener('click', () => deleteItem(name, b.dataset.delete)));
+    enableDragScroll($('adminDeckTrack'));
+  }
+  if (name === 'plans') {
+    $('savePlans')?.addEventListener('click', savePlans);
+    $('seedPlans')?.addEventListener('click', seedPlans);
+  }
+  if (name === 'keys') {
+    $('addKeysForm')?.addEventListener('submit', addKeys);
+    $('keyFilterProduct')?.addEventListener('change', () => renderPanel('keys'));
+    $('keyFilterPlan')?.addEventListener('change', () => renderPanel('keys'));
+    document.querySelectorAll('[data-remove-key]').forEach(b => b.addEventListener('click', () => removeKey(b.dataset.removeKey, b.dataset.product, b.dataset.plan)));
+  }
+  if (name === 'rules') {
+    $('copyDbRulesBtn')?.addEventListener('click', () => copyText($('dbRulesCode').textContent, 'Đã sao chép Realtime Database Rules!'));
+    $('copyStorageRulesBtn')?.addEventListener('click', () => copyText($('storageRulesCode').textContent, 'Đã sao chép Storage Rules!'));
+  }
+}
+
+function renderOverview() {
+  const all = flattenOrders();
+  const pending = all.filter(o => o.status === 'pending').length;
+  const pCount = entries(store.products).length;
+  const gCount = entries(store.gallery).length;
+  const vCount = entries(store.videos).length;
+  const keys = stockCount('available');
+  return `
+    <div class="stats-grid">
+      <div class="metric glass">
+        <div class="label">SẢN PHẨM</div>
+        <div class="value">${pCount}</div>
+        <small>Danh mục &amp; menu đang bán</small>
+      </div>
+      <div class="metric glass">
+        <div class="label">ẢNH &amp; VIDEO MẪU</div>
+        <div class="value">${gCount + vCount}</div>
+        <small>${gCount} bộ ảnh · ${vCount} bộ video</small>
+      </div>
+      <div class="metric glass">
+        <div class="label">KEY CÒN KHO</div>
+        <div class="value">${keys}</div>
+        <small>Key sẵn sàng giao ngay</small>
+      </div>
+      <div class="metric glass">
+        <div class="label">ĐƠN CHỜ XỬ LÝ</div>
+        <div class="value">${pending}</div>
+        <small>Tổng ${all.length} đơn yêu cầu</small>
+      </div>
+    </div>
+    <div class="notice">
+      <b>Hệ thống 2 file tích hợp:</b> Bạn đang đăng nhập bằng mật khẩu cố định <code>chanbomaydi</code>. Quản lý toàn bộ danh mục, sản phẩm, ảnh mẫu, video mẫu, kho key và đơn hàng tại đây.
+    </div>
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>Đơn hàng mới nhất</h2>
+          <p>Kiểm tra yêu cầu mới, sau đó xác nhận hoặc giao key từ kho.</p>
+        </div>
+        <button class="btn secondary small" data-goto="orders">Mở toàn bộ đơn ↗</button>
+      </div>
+      ${orderTable(all.slice(0, 6), true)}
+    </div>
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>Thiết lập nhanh</h2>
+          <p>Quản lý nhanh toàn bộ dữ liệu hiển thị trên cửa hàng.</p>
+        </div>
+      </div>
+      <div class="action-row">
+        <button class="btn primary" data-goto="settings">Sửa nội dung trang</button>
+        <button class="btn secondary" data-goto="products">Thêm sản phẩm</button>
+        <button class="btn secondary" data-goto="gallery">Tải nhiều ảnh mẫu</button>
+        <button class="btn secondary" data-goto="videos">Tải nhiều video mẫu</button>
+        <button class="btn secondary" data-goto="keys">Nhập kho key</button>
+        <button class="btn secondary" data-goto="rules">Xem Firebase Rules</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderSettingsPanel() {
+  const s = currentSettings();
+  const inputs = settingFields.map(([k, label, type]) =>
+    type === 'imageurl'
+      ? `<div class="field full">
+          <label for="setting_${esc(k)}">${esc(label)}</label>
+          <input id="setting_${esc(k)}" name="${esc(k)}" type="url" value="${esc(s[k] ?? '')}" placeholder="https://...">
+          <input data-setting-image="${esc(k)}" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" style="margin-top:8px;width:100%;font-size:10px;color:#aab5cc">
+          <small class="muted" style="font-size:9px;line-height:1.7">Chọn ảnh QR để tải lên Storage (tối đa 5 MB) hoặc dán URL.</small>
+        </div>`
+      : `<div class="field ${type === 'textarea' ? 'full' : ''}">
+          <label for="setting_${esc(k)}">${esc(label)}</label>
+          ${type === 'textarea'
+            ? `<textarea id="setting_${esc(k)}" name="${esc(k)}">${esc(s[k] ?? '')}</textarea>`
+            : `<input id="setting_${esc(k)}" name="${esc(k)}" type="${type === 'url' ? 'url' : 'text'}" value="${esc(s[k] ?? '')}" ${k === 'siteTitle' ? 'required' : ''}>`
+          }
+        </div>`
+  ).join('');
+
+  return `
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>Toàn bộ nội dung trang chủ</h2>
+          <p>Chỉnh sửa văn bản hiển thị, tiêu đề mục Ảnh mẫu, Video mẫu, menu điều hướng, liên kết hỗ trợ và chân trang.</p>
+        </div>
+        <button type="button" class="btn secondary small" id="seedDefaults">Khởi tạo nội dung mặc định</button>
+      </div>
+      <form id="settingsForm">
+        <div class="form-grid">${inputs}</div>
+        <div class="settings-save">
+          <button class="btn primary" type="submit">Lưu tất cả nội dung ↗</button>
+        </div>
+      </form>
+    </div>
+  `;
+}
+
+async function saveSettings(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const data = {...currentSettings()};
+  const button = form.querySelector('button[type=submit]');
+  button.disabled = true;
+  button.textContent = 'Đang lưu…';
+  try {
+    for (const [k] of settingFields) {
+      data[k] = form.elements[k]?.value?.trim() ?? '';
+    }
+    const file = form.querySelector('input[type="file"][data-setting-image]')?.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) throw new Error('Chỉ được tải tệp ảnh.');
+      if (file.size > 5 * 1024 * 1024) throw new Error('Ảnh QR vượt quá giới hạn 5 MB.');
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
+      const token = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+      const objectRef = storageRef(storage, `public/payment/${token}-${safeName}`);
+      await uploadBytes(objectRef, file, {contentType: file.type});
+      data.paymentQrUrl = await getDownloadURL(objectRef);
+    }
+    await set(ref(db, 'store/settings'), data);
+    toast('Đã lưu nội dung trang vào Firebase.');
+  } catch (err) {
+    console.error(err);
+    toast('Lưu thất bại: ' + err.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Lưu tất cả nội dung ↗';
+  }
+}
+
+async function seedDefaults() {
+  const ok = await askConfirm('Khởi tạo nội dung mặc định và bảng giá nếu chưa có? Dữ liệu đang tồn tại sẽ không bị ghi đè.');
+  if (!ok) return;
+  const defaults = {
+    siteTitle: 'KEYNOVA',
+    brandTagline: 'DIGITAL STORE',
+    heroBadge: 'DIGITAL ACCESS · FAST & SIMPLE',
+    heroTitle: 'Nâng cấp trải nghiệm.',
+    heroHighlight: 'Key xịn, giá gọn.',
+    heroDescription: 'Kho key menu số được chọn lọc, bảng giá rõ ràng và quy trình nhận key minh bạch. Nội dung được cập nhật trực tiếp từ hệ thống quản trị.',
+    heroPrimary: 'Xem sản phẩm ↗',
+    heroSecondary: 'Nhận key miễn phí',
+    announcement: 'Chào mừng bạn đến với KEYNOVA. Đăng ký tài khoản để quản lý đơn hàng và nhận key nhanh chóng.',
+    categoriesTitle: 'Danh mục nổi bật',
+    categoriesDescription: 'Đi thẳng đến đúng loại sản phẩm bạn đang cần.',
+    categoryBannerTitle: 'Một kho key, nhiều lựa chọn.',
+    categoryBannerText: 'Giá bán, nội dung và danh mục đều do quản trị viên cập nhật.',
+    productsTitle: 'Sản phẩm & menu',
+    productsDescription: 'Chọn sản phẩm rồi chọn thời hạn key phù hợp.',
+    galleryTitle: 'Ảnh mẫu sản phẩm',
+    galleryDescription: 'Vuốt ngang hoặc kéo thẻ để xem bộ ảnh mẫu thực tế.',
+    videosTitle: 'Video mẫu thực tế',
+    videosDescription: 'Vuốt ngang qua các thẻ video để xem trình diễn tính năng trực tiếp.',
+    plansTitle: 'Bảng giá key',
+    plansDescription: 'Thời hạn và giá được quản trị viên điều chỉnh trực tiếp trên hệ thống.',
+    freeTitle: 'Săn key miễn phí',
+    freeDescription: 'Mở link nhiệm vụ, hoàn thành bước bên ngoài rồi gửi yêu cầu nhận key.',
+    reviewsTitle: 'Feedback từ khách hàng',
+    reviewsDescription: 'Đánh giá và phản hồi được quản trị viên chọn hiển thị.',
+    faqTitle: 'Mua key như thế nào?',
+    faqDescription: 'Chọn sản phẩm, gửi yêu cầu và chờ shop xử lý.',
+    contactTitle: 'Cần hỗ trợ chọn key?',
+    contactDescription: 'Liên hệ shop để hỏi về sản phẩm, thời hạn và quy trình kích hoạt.',
+    contactButtonText: 'Liên hệ hỗ trợ ↗',
+    paymentInstructions: 'Sau khi gửi đơn, admin sẽ hướng dẫn thanh toán qua thông tin liên hệ bạn cung cấp.',
+    paymentQrUrl: '',
+    myOrdersTitle: 'Đơn hàng của tôi',
+    myOrdersDescription: 'Các đơn thuộc tài khoản của bạn sẽ xuất hiện tại đây. Khi admin giao key, bạn có thể xem và sao chép key.',
+    statProductsLabel: 'SẢN PHẨM',
+    statCategoriesLabel: 'DANH MỤC',
+    statRequestsValue: '24/7',
+    statRequestsLabel: 'ĐẶT YÊU CẦU',
+    supportUrl: '',
+    navCategories: 'Danh mục',
+    navProducts: 'Sản phẩm',
+    navGallery: 'Ảnh mẫu',
+    navVideos: 'Video mẫu',
+    navReviews: 'Đánh giá',
+    navPricing: 'Bảng giá key',
+    navFree: 'Key free',
+    navMyOrders: 'Đơn của tôi',
+    footerText: 'Cửa hàng sản phẩm số. Thông tin sản phẩm, ảnh mẫu, video mẫu và bảng giá được đồng bộ từ Firebase.',
+    copyrightText: `© ${new Date().getFullYear()} KEYNOVA. All rights reserved.`
+  };
+  try {
+    const current = (await get(ref(db, 'store/settings'))).val();
+    if (!current) await set(ref(db, 'store/settings'), defaults);
+    const curPlans = (await get(ref(db, 'store/keyPlans'))).val();
+    if (!curPlans) await set(ref(db, 'store/keyPlans'), Object.fromEntries(presets.map(p => [p.id, p])));
+    const curFaqs = (await get(ref(db, 'store/faqs'))).val();
+    if (!curFaqs) {
+      await set(ref(db, 'store/faqs'), {
+        'faq-1': {question:'Chọn sản phẩm và thời hạn như thế nào?',answer:'Chọn menu bạn cần, sau đó chọn gói 1, 3, 7, 30, 90 ngày hoặc vĩnh viễn.',active:true,sortOrder:1},
+        'faq-2': {question:'Sau khi đặt đơn, bao lâu nhận được key?',answer:'Đơn sẽ được admin kiểm tra. Sau khi giao, key xuất hiện trong khu vực Đơn hàng của tôi.',active:true,sortOrder:2},
+        'faq-3': {question:'Làm sao tạo tài khoản người dùng?',answer:'Bấm vào nút Tài khoản trên thanh menu, điền thông tin và hoàn thành xác minh Cloudflare Captcha để đăng ký.',active:true,sortOrder:3},
+        'faq-4': {question:'Tôi không thấy key ở đơn hàng?',answer:'Hãy đăng nhập đúng tài khoản đã tạo đơn hoặc liên hệ shop bằng mã đơn hàng.',active:true,sortOrder:4}
+      });
+    }
+    toast('Đã tạo dữ liệu cấu hình mặc định còn thiếu.');
+  } catch (err) {
+    toast('Không thể khởi tạo: ' + err.message);
+  }
+}
+
+function expandMediaCards(coll, items) {
+  const cards = [];
+  for (const item of items) {
+    if (coll === 'gallery') {
+      const list = Array.isArray(item.images) && item.images.length
+        ? item.images
+        : String(item.imageUrl || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      list.forEach((url, idx) => {
+        cards.push({
+          id: item.id,
+          title: list.length > 1 ? `${item.title || 'Ảnh mẫu'} (#${idx + 1})` : (item.title || 'Ảnh mẫu'),
+          url,
+          type: 'image'
+        });
+      });
+    } else if (coll === 'videos') {
+      const list = Array.isArray(item.videos) && item.videos.length
+        ? item.videos
+        : String(item.videoUrl || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      list.forEach((url, idx) => {
+        cards.push({
+          id: item.id,
+          title: list.length > 1 ? `${item.title || 'Video mẫu'} (#${idx + 1})` : (item.title || 'Video mẫu'),
+          url,
+          posterUrl: item.posterUrl || '',
+          type: 'video'
+        });
+      });
+    }
+  }
+  return cards;
+}
+
+function renderCollection(coll) {
+  const schema = schemas[coll];
+  const items = entries(store[coll]).sort((a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0));
+
+  let deckPreviewHtml = '';
+  if (coll === 'gallery' || coll === 'videos') {
+    const cards = expandMediaCards(coll, items.filter(x => x.active !== false));
+    if (cards.length) {
+      deckPreviewHtml = `
+        <div class="panel glass">
+          <div class="panel-head">
+            <div>
+              <h2>Xem trước thẻ vuốt ngang (${cards.length} thẻ)</h2>
+              <p>Kéo ngang hoặc vuốt trên điện thoại để kiểm tra hiệu ứng thẻ cạnh nhau trước khi xem ngoài cửa hàng.</p>
+            </div>
+          </div>
+          <div class="admin-deck-wrap">
+            <div class="admin-deck-track" id="adminDeckTrack">
+              ${cards.map(c => `
+                <div class="admin-deck-card">
+                  <div class="admin-deck-media">
+                    ${c.type === 'video'
+                      ? `<video src="${esc(c.url)}" ${c.posterUrl ? `poster="${esc(c.posterUrl)}"` : ''} muted playsinline preload="metadata" controls></video>`
+                      : `<img src="${esc(c.url)}" alt="${esc(c.title)}" loading="lazy">`
+                    }
+                  </div>
+                  <div class="admin-deck-meta">
+                    <strong>${esc(c.title)}</strong>
+                    <span class="pill pill-blue">${c.type === 'video' ? 'VIDEO' : 'ẢNH'}</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  const rows = items.length ? items.map(x => {
+    let mediaCountBadge = '';
+    if (coll === 'gallery') {
+      const cnt = Array.isArray(x.images) ? x.images.length : String(x.imageUrl || '').split(/\r?\n/).filter(Boolean).length;
+      mediaCountBadge = `<span class="pill pill-blue">${cnt || 1} ảnh</span>`;
+    } else if (coll === 'videos') {
+      const cnt = Array.isArray(x.videos) ? x.videos.length : String(x.videoUrl || '').split(/\r?\n/).filter(Boolean).length;
+      mediaCountBadge = `<span class="pill pill-blue">${cnt || 1} video</span>`;
+    }
+    return `
+      <tr>
+        <td>
+          <span class="item-main">${esc(x.name || x.title || x.question || 'Không có tên')}</span>
+          <span class="item-sub">${esc((x.description || x.content || x.answer || x.imageUrl || x.videoUrl || x.shortlinkUrl || '').slice(0, 155))}</span>
+        </td>
+        <td>
+          ${mediaCountBadge}
+          ${esc(
+            coll === 'products' ? (store.categories?.[x.categoryId]?.name || 'Chưa phân loại') :
+            coll === 'reviews' ? (x.rating || 5) + ' ★' :
+            coll === 'freeOffers' ? (store.products?.[x.productId]?.name || 'Chưa chọn sản phẩm') :
+            (x.categoryId ? store.categories?.[x.categoryId]?.name || '—' : '—')
+          )}
+        </td>
+        <td>${x.active === false ? '<span class="pill pill-red">Đã ẩn</span>' : '<span class="pill pill-green">Đang hiển thị</span>'}</td>
+        <td>
+          <div class="action-row">
+            <button type="button" class="btn secondary small" data-edit="${esc(x.id)}">Sửa</button>
+            <button type="button" class="btn danger small" data-delete="${esc(x.id)}">Xoá</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('') : '<tr><td colspan="4"><div class="empty">Chưa có dữ liệu. Bấm “Thêm mới” để tạo mục đầu tiên.</div></td></tr>';
+
+  const description = {
+    categories: 'Danh mục, mô tả và ảnh bìa hiển thị ở đầu trang.',
+    products: 'Tên sản phẩm, ảnh bìa, mô tả và danh mục liên kết.',
+    gallery: 'Có thể tải lên nhiều ảnh cùng lúc hoặc dán nhiều URL ảnh (mỗi dòng 1 link). Các ảnh sẽ xếp thành thẻ cạnh nhau để khách vuốt ngang.',
+    videos: 'Có thể tải lên nhiều tệp video (MP4/WebM) hoặc dán nhiều link video/YouTube. Các video sẽ hiển thị dạng thẻ cạnh nhau vuốt ngang.',
+    reviews: 'Chỉ hiển thị feedback bạn nhập và bật trạng thái hiển thị.',
+    freeOffers: 'Mỗi chương trình liên kết với một sản phẩm, một hạn key và một link nhiệm vụ.',
+    faqs: 'Câu hỏi và câu trả lời hiển thị trong phần FAQ của trang khách.'
+  }[coll];
+
+  return `
+    ${deckPreviewHtml}
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>Danh sách ${schema.title.toLowerCase()}</h2>
+          <p>${description}</p>
+        </div>
+        <button type="button" class="btn primary" id="addItem">＋ Thêm ${schema.title.toLowerCase()}</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Nội dung</th><th>Liên kết / Số lượng</th><th>Trạng thái</th><th>Thao tác</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function fieldControl(k, label, type, required, value, fullObj = {}) {
+  const id = 'ef_' + k;
+  let val = value;
+  if (type === 'checkbox') {
+    return `<label class="check-field full"><input id="${id}" name="${k}" type="checkbox" ${value === false ? '' : 'checked'}> ${esc(label)}</label>`;
+  }
+  if (type === 'textarea') {
+    return `<div class="field full"><label for="${id}">${esc(label)}</label><textarea id="${id}" name="${k}" ${required ? 'required' : ''}>${esc(val ?? '')}</textarea></div>`;
+  }
+  if (type === 'multi_image') {
+    const joined = Array.isArray(fullObj.images) && fullObj.images.length
+      ? fullObj.images.join('\n')
+      : (val ?? '');
+    return `
+      <div class="field full">
+        <label for="${id}">${esc(label)}</label>
+        <textarea id="${id}" name="${k}" placeholder="https://example.com/anh-1.jpg&#10;https://example.com/anh-2.jpg">${esc(joined)}</textarea>
+        <input data-multi-image="${esc(k)}" type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif,image/avif" style="margin-top:8px;width:100%;font-size:10px;color:#aab5cc">
+        <small class="muted" style="font-size:9px;line-height:1.7">Có thể chọn NHIỀU ảnh cùng lúc từ máy/điện thoại (tối đa 8 MB/ảnh) hoặc dán nhiều URL ảnh (mỗi dòng 1 ảnh). Khi có nhiều ảnh, trang chủ sẽ tạo các thẻ cạnh nhau để vuốt qua lại.</small>
+      </div>
+    `;
+  }
+  if (type === 'multi_video') {
+    const joined = Array.isArray(fullObj.videos) && fullObj.videos.length
+      ? fullObj.videos.join('\n')
+      : (val ?? '');
+    return `
+      <div class="field full">
+        <label for="${id}">${esc(label)}</label>
+        <textarea id="${id}" name="${k}" placeholder="https://example.com/video-1.mp4&#10;https://www.youtube.com/watch?v=...">${esc(joined)}</textarea>
+        <input data-multi-video="${esc(k)}" type="file" multiple accept="video/mp4,video/webm,video/ogg,video/quicktime" style="margin-top:8px;width:100%;font-size:10px;color:#aab5cc">
+        <small class="muted" style="font-size:9px;line-height:1.7">Có thể chọn NHIỀU tệp video (MP4/WebM/MOV) để tải lên Firebase Storage hoặc dán nhiều link video/YouTube (mỗi dòng 1 link). Các video sẽ xếp thành thẻ cạnh nhau vuốt ngang.</small>
+      </div>
+    `;
+  }
+  if (type === 'selectCategories' || type === 'selectProducts' || type === 'selectPlans') {
+    let options = [];
+    if (type === 'selectCategories') options = entries(store.categories).map(x => [x.id, x.name || x.id]);
+    if (type === 'selectProducts') options = entries(store.products).map(x => [x.id, x.name || x.id]);
+    if (type === 'selectPlans') options = entries(store.keyPlans).map(x => [x.id, x.label || x.name || x.id]);
+    return `
+      <div class="field">
+        <label for="${id}">${esc(label)}</label>
+        <select id="${id}" name="${k}" ${required ? 'required' : ''}>
+          <option value="">-- Chọn --</option>
+          ${options.map(([v, l]) => `<option value="${esc(v)}" ${String(val || '') === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}
+        </select>
+      </div>
+    `;
+  }
+  if (type === 'url' && (k === 'imageUrl' || k === 'avatarUrl' || k === 'posterUrl')) {
+    return `
+      <div class="field full">
+        <label for="${id}">${esc(label)}</label>
+        <input id="${id}" name="${k}" type="url" value="${esc(val ?? '')}" placeholder="https://... (hoặc tải ảnh bên dưới)">
+        <input data-image-key="${esc(k)}" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" style="margin-top:8px;width:100%;font-size:10px;color:#aab5cc">
+        <small class="muted" style="font-size:9px;line-height:1.7">Chọn ảnh để tải lên Firebase Storage (tối đa 5 MB), hoặc dán URL ảnh công khai.</small>
+      </div>
+    `;
+  }
+  return `
+    <div class="field">
+      <label for="${id}">${esc(label)}</label>
+      <input id="${id}" name="${k}" type="${type === 'number' ? 'number' : type === 'url' ? 'url' : 'text'}" value="${esc(val ?? (type === 'number' ? 0 : ''))}" ${type === 'number' ? 'step="any"' : ''} ${required ? 'required' : ''}>
+    </div>
+  `;
+}
+
+function openEditor(coll, id = '') {
+  editorCollection = coll;
+  editorId = id;
+  const schema = schemas[coll];
+  const obj = id ? store[coll]?.[id] || {} : {};
+  $('editorTitle').textContent = (id ? 'Sửa ' : 'Thêm ') + schema.title.toLowerCase();
+  $('editorHelp').textContent = 'Mục này được lưu trực tiếp ở store/' + coll + ' trong Firebase.';
+  $('editorFields').innerHTML = schema.fields.map(([k, label, type, required]) => fieldControl(k, label, type, required, obj[k], obj)).join('');
+  $('editorBg').classList.add('open');
+}
+
+function closeEditor() {
+  $('editorBg').classList.remove('open');
+}
+$('editorClose').addEventListener('click', closeEditor);
+$('editorCancel').addEventListener('click', closeEditor);
+$('editorBg').addEventListener('click', e => {
+  if (e.target === $('editorBg')) closeEditor();
+});
+
+$('editorForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const schema = schemas[editorCollection];
+  const obj = editorId ? {...(store[editorCollection]?.[editorId] || {})} : {};
+  const submitButton = form.querySelector('button[type=submit]');
+  submitButton.disabled = true;
+  submitButton.textContent = 'Đang tải & lưu…';
+
+  try {
+    for (const [k, , type] of schema.fields) {
+      const el = form.elements[k];
+      if (!el) continue;
+      let val;
+      if (type === 'checkbox') val = el.checked;
+      else if (type === 'number') val = el.value === '' ? 0 : Number(el.value);
+      else val = el.value.trim();
+      obj[k] = val;
+    }
+
+    // Single image upload (categories, products, reviews, freeOffers, video poster)
+    const fileInput = form.querySelector('input[type="file"][data-image-key]');
+    const singleFile = fileInput?.files?.[0];
+    if (singleFile) {
+      if (!singleFile.type.startsWith('image/')) throw new Error('Chỉ được tải tệp ảnh.');
+      if (singleFile.size > 8 * 1024 * 1024) throw new Error('Ảnh vượt quá giới hạn 8 MB.');
+      const safeName = singleFile.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
+      const token = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+      const objectRef = storageRef(storage, `public/${editorCollection}/${token}-${safeName}`);
+      await uploadBytes(objectRef, singleFile, {contentType: singleFile.type});
+      obj[fileInput.dataset.imageKey] = await getDownloadURL(objectRef);
+    }
+
+    // Multi-image upload for Gallery
+    const multiImageInput = form.querySelector('input[type="file"][data-multi-image]');
+    if (multiImageInput) {
+      const textUrls = String(obj.imageUrl || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      const files = Array.from(multiImageInput.files || []);
+      const uploadedUrls = [];
+      for (const f of files) {
+        if (!f.type.startsWith('image/')) throw new Error('Tệp tải lên phải là hình ảnh.');
+        if (f.size > 10 * 1024 * 1024) throw new Error(`Ảnh ${f.name} vượt quá 10 MB.`);
+        const safeName = f.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
+        const token = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())) + '-' + Math.random().toString(36).slice(2, 6);
+        const objectRef = storageRef(storage, `public/gallery/${token}-${safeName}`);
+        await uploadBytes(objectRef, f, {contentType: f.type});
+        uploadedUrls.push(await getDownloadURL(objectRef));
+      }
+      const allImages = [...textUrls, ...uploadedUrls];
+      if (!allImages.length) throw new Error('Hãy dán ít nhất 1 URL ảnh hoặc chọn ảnh tải lên.');
+      obj.images = allImages;
+      obj.imageUrl = allImages[0];
+    }
+
+    // Multi-video upload for Videos
+    const multiVideoInput = form.querySelector('input[type="file"][data-multi-video]');
+    if (multiVideoInput) {
+      const textUrls = String(obj.videoUrl || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      const files = Array.from(multiVideoInput.files || []);
+      const uploadedUrls = [];
+      for (const f of files) {
+        if (!f.type.startsWith('video/')) throw new Error('Tệp tải lên phải là video (MP4/WebM/MOV).');
+        if (f.size > 120 * 1024 * 1024) throw new Error(`Video ${f.name} vượt quá 120 MB.`);
+        const safeName = f.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
+        const token = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())) + '-' + Math.random().toString(36).slice(2, 6);
+        const objectRef = storageRef(storage, `public/videos/${token}-${safeName}`);
+        await uploadBytes(objectRef, f, {contentType: f.type});
+        uploadedUrls.push(await getDownloadURL(objectRef));
+      }
+      const allVideos = [...textUrls, ...uploadedUrls];
+      if (!allVideos.length) throw new Error('Hãy dán ít nhất 1 URL video hoặc chọn video tải lên.');
+      obj.videos = allVideos;
+      obj.videoUrl = allVideos[0];
+    }
+
+    obj.updatedAt = Date.now();
+    if (!editorId) {
+      obj.createdAt = Date.now();
+      if (!obj.sortOrder) obj.sortOrder = Date.now();
+      editorId = push(ref(db, `store/${editorCollection}`)).key;
+    }
+    await set(ref(db, `store/${editorCollection}/${editorId}`), obj);
+    closeEditor();
+    toast('Đã lưu ' + schema.title.toLowerCase() + ' thành công!');
+  } catch (err) {
+    console.error(err);
+    toast('Lưu thất bại: ' + err.message);
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = 'Lưu vào Firebase';
+  }
+});
+
+async function deleteItem(coll, id) {
+  const ok = await askConfirm('Xoá mục này? Thao tác sẽ cập nhật ngay lập tức trên cửa hàng.');
+  if (!ok) return;
+  try {
+    await remove(ref(db, `store/${coll}/${id}`));
+    toast('Đã xoá mục.');
+  } catch (err) {
+    toast('Không xoá được: ' + err.message);
+  }
+}
+
+function renderPlansPanel() {
+  const cur = store.keyPlans || {};
+  const list = presets.map(p => ({...p, ...(cur[p.id] || {})}));
+  return `
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>Thời hạn và giá key</h2>
+          <p>Chỉnh nhãn, tên gói, giá bán và bật/tắt từng gói. Giá nhập là VND.</p>
+        </div>
+        <button type="button" class="btn secondary small" id="seedPlans">Tạo gói mặc định còn thiếu</button>
+      </div>
+      <div id="planEditor">
+        ${list.map(p => `
+          <div class="plan-row" data-plan-row="${esc(p.id)}">
+            <div class="field"><label>Thời hạn</label><input value="${esc(p.label)}" data-field="label"></div>
+            <div class="field"><label>Tên gói</label><input value="${esc(p.name)}" data-field="name"></div>
+            <div class="field"><label>Giá (VND)</label><input type="number" min="0" step="1000" value="${Number(p.price) || 0}" data-field="price"></div>
+            <label class="check-field" style="margin:0"><input type="checkbox" data-field="active" ${p.active === false ? '' : 'checked'}> Đang bán</label>
+          </div>
+        `).join('')}
+      </div>
+      <div class="settings-save">
+        <button type="button" class="btn primary" id="savePlans">Lưu bảng giá ↗</button>
+      </div>
+    </div>
+  `;
+}
+
+async function seedPlans() {
+  try {
+    const current = (await get(ref(db, 'store/keyPlans'))).val() || {};
+    for (const p of presets) if (!current[p.id]) current[p.id] = p;
+    await set(ref(db, 'store/keyPlans'), current);
+    toast('Đã bổ sung gói còn thiếu.');
+  } catch (err) {
+    toast('Lỗi cập nhật gói: ' + err.message);
+  }
+}
+
+async function savePlans() {
+  const next = {...(store.keyPlans || {})};
+  document.querySelectorAll('[data-plan-row]').forEach(row => {
+    const id = row.dataset.planRow;
+    const old = next[id] || presets.find(p => p.id === id) || {};
+    next[id] = {
+      ...old,
+      label: row.querySelector('[data-field="label"]').value.trim(),
+      name: row.querySelector('[data-field="name"]').value.trim(),
+      price: Math.max(0, Number(row.querySelector('[data-field="price"]').value) || 0),
+      active: row.querySelector('[data-field="active"]').checked,
+      days: old.days ?? (id === 'lifetime' ? 0 : Number(id.replace('d', '')) || 0),
+      sortOrder: old.sortOrder || presets.find(p => p.id === id)?.sortOrder || 99
+    };
+  });
+  try {
+    await set(ref(db, 'store/keyPlans'), next);
+    toast('Đã cập nhật bảng giá.');
+  } catch (err) {
+    toast('Không lưu được bảng giá: ' + err.message);
+  }
+}
+
+function selectOptions(obj, selected) {
+  return entries(obj).map(x => `<option value="${esc(x.id)}" ${selected === x.id ? 'selected' : ''}>${esc(x.name || x.label || x.id)}</option>`).join('');
+}
+
+function renderKeysPanel() {
+  const ps = entries(store.products);
+  const pls = entries(store.keyPlans);
+  const productVal = $('keyFilterProduct')?.value || ps[0]?.id || '';
+  const planVal = $('keyFilterPlan')?.value || pls[0]?.id || '';
+  const byPlan = vault[productVal]?.[planVal] || {};
+  const rows = entries(byPlan).sort((a, b) => (Number(b.addedAt) || 0) - (Number(a.addedAt) || 0));
+  const table = rows.length ? rows.map(k => `
+    <tr>
+      <td><span class="item-main key-value allow-select">${esc(k.value || '')}</span><span class="item-sub">ID: ${esc(k.id)}</span></td>
+      <td>${k.status === 'available' ? '<span class="pill pill-green">Có thể giao</span>' : k.status === 'assigned' ? '<span class="pill pill-blue">Đã giữ / giao</span>' : '<span class="pill pill-amber">' + esc(k.status || 'N/A') + '</span>'}</td>
+      <td>${new Date(Number(k.addedAt) || Date.now()).toLocaleString('vi-VN')}</td>
+      <td>${k.status === 'available' ? `<button type="button" class="btn danger small" data-remove-key="${esc(k.id)}" data-product="${esc(productVal)}" data-plan="${esc(planVal)}">Xoá</button>` : '—'}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="4"><div class="empty">Chưa có key cho lựa chọn này.</div></td></tr>';
+
+  return `
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>Nhập key vào kho</h2>
+          <p>Mỗi dòng trong ô bên dưới là một key riêng. Key được gắn với sản phẩm và thời hạn đã chọn.</p>
+        </div>
+        <span class="pill pill-green">${stockCount('available')} key chưa giao</span>
+      </div>
+      <form id="addKeysForm">
+        <div class="stock-controls">
+          <div class="field"><label>SẢN PHẨM / MENU</label><select name="productId" id="keyProduct" required>${selectOptions(store.products, productVal)}</select></div>
+          <div class="field"><label>THỜI HẠN KEY</label><select name="planId" id="keyPlan" required>${pls.map(p => `<option value="${esc(p.id)}" ${p.id === planVal ? 'selected' : ''}>${esc(p.label || p.name || p.id)}</option>`).join('')}</select></div>
+        </div>
+        <div class="field">
+          <label>KEY (MỖI DÒNG MỘT KEY)</label>
+          <textarea name="keyValues" required placeholder="KEY-ABCD-1234&#10;KEY-EFGH-5678&#10;KEY-IJKL-9012" style="min-height:130px"></textarea>
+        </div>
+        <button class="btn primary" type="submit">＋ Thêm key vào kho</button>
+      </form>
+    </div>
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>Danh sách key</h2>
+          <p>Hiển thị key theo sản phẩm và thời hạn đang chọn.</p>
+        </div>
+      </div>
+      <div class="stock-controls" style="margin-bottom:15px">
+        <div class="field"><label>LỌC SẢN PHẨM</label><select id="keyFilterProduct">${selectOptions(store.products, productVal)}</select></div>
+        <div class="field"><label>LỌC THỜI HẠN</label><select id="keyFilterPlan">${pls.map(p => `<option value="${esc(p.id)}" ${p.id === planVal ? 'selected' : ''}>${esc(p.label || p.name || p.id)}</option>`).join('')}</select></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Key / ID</th><th>Trạng thái</th><th>Ngày thêm</th><th>Thao tác</th></tr></thead>
+          <tbody>${table}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+async function addKeys(e) {
+  e.preventDefault();
+  const f = e.currentTarget;
+  const productId = f.elements.productId.value;
+  const planId = f.elements.planId.value;
+  const values = [...new Set(f.elements.keyValues.value.split(/\r?\n/).map(x => x.trim()).filter(Boolean))];
+  if (!productId || !planId || !values.length) {
+    toast('Chọn sản phẩm, thời hạn và nhập ít nhất một key.');
+    return;
+  }
+  if (values.length > 500) {
+    toast('Mỗi lần chỉ thêm tối đa 500 key.');
+    return;
+  }
+  try {
+    const updates = {};
+    for (const v of values) {
+      const id = push(ref(db, `keyVault/${productId}/${planId}`)).key;
+      updates[`keyVault/${productId}/${planId}/${id}`] = {
+        value: v,
+        status: 'available',
+        addedAt: Date.now(),
+        addedBy: currentUser?.uid || 'admin-fixed'
+      };
+    }
+    await update(ref(db), updates);
+    toast(`Đã thêm ${values.length} key vào kho.`);
+    f.elements.keyValues.value = '';
+    renderPanel('keys');
+  } catch (err) {
+    toast('Nhập key thất bại: ' + err.message);
+  }
+}
+
+async function removeKey(id, p, pl) {
+  const ok = await askConfirm('Xoá key chưa giao khỏi kho?');
+  if (!ok) return;
+  try {
+    await remove(ref(db, `keyVault/${p}/${pl}/${id}`));
+    toast('Đã xoá key.');
+  } catch (err) {
+    toast('Không xoá được: ' + err.message);
+  }
+}
+
+function statusPill(s) {
+  const map = {
+    pending: ['Chờ xử lý', 'pill-amber'],
+    paid: ['Đã xác nhận', 'pill-blue'],
+    delivered: ['Đã giao key', 'pill-green'],
+    rejected: ['Từ chối', 'pill-red']
+  };
+  const v = map[s] || [s || 'N/A', 'pill-blue'];
+  return `<span class="pill ${v[1]}">${esc(v[0])}</span>`;
+}
+
+function orderTable(all, compact = false) {
+  if (!all.length) return '<div class="empty">Chưa có đơn hàng.</div>';
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Đơn / khách</th>
+            <th>Sản phẩm &amp; hạn</th>
+            <th>Giá</th>
+            <th>Trạng thái</th>
+            ${compact ? '' : '<th>Key / ghi chú</th>'}
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${all.map(o => `
+            <tr>
+              <td>
+                <span class="item-main">${esc(o.customerName || 'Khách')}</span>
+                <span class="item-sub">Đơn: ${esc(o.id)}<br>Liên hệ: ${esc(o.contact || '—')}${o.userEmail ? `<br>TK: ${esc(o.userEmail)}` : ''}<br>${new Date(Number(o.createdAt) || Date.now()).toLocaleString('vi-VN')}</span>
+              </td>
+              <td>
+                <span class="item-main">${esc(o.productName || store.products?.[o.productId]?.name || 'Sản phẩm')}</span>
+                <span class="item-sub">${esc(store.keyPlans?.[o.planId]?.label || o.planLabel || o.planId || '')} · ${o.type === 'free' ? 'KEY FREE' : 'KEY BÁN'}</span>
+              </td>
+              <td>${fmt(o.price)}</td>
+              <td>${statusPill(o.status)}</td>
+              ${compact ? '' : `<td><span class="key-value allow-select">${esc(o.key || '')}</span><span class="item-sub">${esc(o.note || '')}</span></td>`}
+              <td>
+                <div class="action-row">
+                  ${o.status !== 'delivered' && o.status !== 'rejected' ? `
+                    ${o.status === 'pending' ? `<button type="button" class="btn secondary small" data-order-action="paid" data-uid="${esc(o.uid)}" data-id="${esc(o.id)}">Xác nhận</button>` : ''}
+                    <button type="button" class="btn primary small" data-order-action="deliver" data-uid="${esc(o.uid)}" data-id="${esc(o.id)}">Giao key</button>
+                    <button type="button" class="btn danger small" data-order-action="reject" data-uid="${esc(o.uid)}" data-id="${esc(o.id)}">Từ chối</button>
+                  ` : '—'}
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderOrdersPanel() {
+  const all = flattenOrders();
+  return `
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>Yêu cầu của khách hàng</h2>
+          <p>“Xác nhận” đổi trạng thái đơn sang đã xác nhận. “Giao key” sẽ tự động lấy một key khả dụng đúng sản phẩm + thời hạn trong kho.</p>
+        </div>
+        <span class="pill pill-amber">${all.filter(o => o.status === 'pending').length} đơn đang chờ</span>
+      </div>
+      <div class="toolbar">
+        <input id="orderSearch" class="search" placeholder="Tìm tên, mã đơn, liên hệ, email…">
+        <span class="muted" style="font-size:10px">Tổng ${all.length} đơn</span>
+      </div>
+      <div id="ordersTable">${orderTable(all)}</div>
+    </div>
+  `;
+}
+
+function renderRulesPanel() {
+  const dbRules = JSON.stringify({
+    rules: {
+      ".read": true,
+      ".write": "auth != null",
+      "store": {
+        ".read": true,
+        ".write": "auth != null"
+      },
+      "keyVault": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      },
+      "users": {
+        "$uid": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        }
+      },
+      "orders": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    }
+  }, null, 2);
+
+  const storageRules = `rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /public/{path=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && (request.resource == null || request.resource.size < 120 * 1024 * 1024);
+    }
+  }
+}`;
+
+  return `
+    <div class="notice">
+      Toàn bộ hệ thống đã được gộp gọn vào 2 file <code>index.html</code> và <code>admin.html</code>. Vì trang Admin dùng mật khẩu cố định (<code>chanbomaydi</code>) và tự động kết nối phiên Firebase nền, bạn có thể dán Rules bên dưới vào Firebase Console để upload ảnh/video và quản lý kho key mượt mà không cần tạo tài khoản Admin riêng.
+    </div>
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>1. Realtime Database Rules</h2>
+          <p>Dán vào Firebase Console → Realtime Database → Rules rồi bấm Publish.</p>
+        </div>
+        <button type="button" class="btn primary small" id="copyDbRulesBtn">Sao chép Database Rules</button>
+      </div>
+      <pre class="code-box allow-select" id="dbRulesCode">${esc(dbRules)}</pre>
+    </div>
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>2. Firebase Storage Rules (Hỗ trợ cả Ảnh mẫu &amp; Video mẫu)</h2>
+          <p>Dán vào Firebase Console → Storage → Rules rồi bấm Publish.</p>
+        </div>
+        <button type="button" class="btn primary small" id="copyStorageRulesBtn">Sao chép Storage Rules</button>
+      </div>
+      <pre class="code-box allow-select" id="storageRulesCode">${esc(storageRules)}</pre>
+    </div>
+  `;
+}
+
+$('panelContent').addEventListener('click', e => {
+  const nav = e.target.closest('[data-goto]');
+  if (nav) {
+    renderPanel(nav.dataset.goto);
+    return;
+  }
+  const action = e.target.closest('[data-order-action]');
+  if (action) processOrder(action.dataset.uid, action.dataset.id, action.dataset.orderAction);
+});
+
+$('panelContent').addEventListener('input', e => {
+  if (e.target.id === 'orderSearch') {
+    const q = e.target.value.toLowerCase();
+    const all = flattenOrders().filter(o => [o.id, o.customerName, o.contact, o.productName, o.status, o.userEmail].some(v => String(v || '').toLowerCase().includes(q)));
+    $('ordersTable').innerHTML = orderTable(all);
+  }
+});
+
+async function processOrder(uid, id, action) {
+  const path = `orders/${uid}/${id}`;
+  const snap = await get(ref(db, path));
+  const order = snap.val();
+  if (!order) {
+    toast('Không tìm thấy đơn hàng.');
+    return;
+  }
+  if (action === 'paid') {
+    try {
+      await update(ref(db, path), {status: 'paid', updatedAt: Date.now()});
+      toast('Đã xác nhận đơn hàng.');
+    } catch (err) {
+      toast('Không cập nhật được: ' + err.message);
+    }
+    return;
+  }
+  if (action === 'reject') {
+    const ok = await askConfirm('Từ chối đơn hàng này?');
+    if (!ok) return;
+    try {
+      await update(ref(db, path), {status: 'rejected', updatedAt: Date.now()});
+      toast('Đã từ chối đơn.');
+    } catch (err) {
+      toast('Không cập nhật được: ' + err.message);
+    }
+    return;
+  }
+  if (action === 'deliver') {
+    if (order.status === 'delivered') {
+      toast('Đơn đã được giao key.');
+      return;
+    }
+    const p = order.productId, pl = order.planId;
+    const candidates = entries(vault[p]?.[pl]).filter(k => (k.status || 'available') === 'available');
+    if (!candidates.length) {
+      toast('Kho không còn key phù hợp cho sản phẩm/thời hạn này.');
+      renderPanel('keys');
+      return;
+    }
+    let assigned = null;
+    for (const item of candidates) {
+      const statusRef = ref(db, `keyVault/${p}/${pl}/${item.id}/status`);
+      const tx = await runTransaction(statusRef, cur => cur === 'available' ? 'assigned' : undefined, {applyLocally: false});
+      if (tx.committed) {
+        assigned = item;
+        break;
+      }
+    }
+    if (!assigned) {
+      toast('Key vừa được lấy. Thử lại.');
+      return;
+    }
+    try {
+      await update(ref(db, `keyVault/${p}/${pl}/${assigned.id}`), {
+        assignedOrderId: id,
+        assignedUid: uid,
+        assignedAt: Date.now()
+      });
+      await update(ref(db, path), {
+        status: 'delivered',
+        key: assigned.value,
+        keyId: assigned.id,
+        deliveredAt: Date.now(),
+        updatedAt: Date.now()
+      });
+      toast('Đã giao key cho đơn ' + id + '.');
+    } catch (err) {
+      console.error(err);
+      toast('Key đã giữ nhưng cập nhật đơn lỗi. Kiểm tra đơn ' + id + '.');
+    }
+  }
+}
+
+/* Fixed Password Login Flow ('chanbomaydi') */
+async function ensureAnonFirebaseSession() {
+  try {
+    if (!auth.currentUser) {
+      await signInAnonymously(auth);
+    }
+  } catch (e) {
+    console.warn('Anonymous auth background notice:', e);
+  }
+}
+
+$('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('loginButton');
+  const passVal = $('password').value;
+  $('loginError').textContent = '';
+
+  if (passVal !== ADMIN_FIXED_PASS) {
+    $('loginError').textContent = 'Mật khẩu cố định không đúng! Vui lòng kiểm tra lại.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Đang mở bảng điều khiển…';
+  try {
+    await ensureAnonFirebaseSession();
+    try { sessionStorage.setItem(SESSION_KEY, '1'); } catch {}
+    showApp({
+      uid: auth.currentUser?.uid || 'admin-fixed',
+      email: 'Master Admin · chanbomaydi'
+    });
+    toast('Đăng nhập quản trị thành công!');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Đăng nhập an toàn ↗';
+  }
+});
+
+async function logout() {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+  try { await signOut(auth); } catch {}
+  currentUser = null;
+  $('app').classList.add('hidden');
+  $('loginScreen').classList.remove('hidden');
+  $('password').value = '';
+  toast('Đã đăng xuất khỏi trang quản trị.');
+}
+
+$('logoutButton').addEventListener('click', logout);
+$('topLogout').addEventListener('click', logout);
+$('sideNav').querySelectorAll('button').forEach(b => b.addEventListener('click', () => renderPanel(b.dataset.panel)));
+
+// Restore unlocked session if already authenticated in current tab
+try {
+  if (sessionStorage.getItem(SESSION_KEY) === '1') {
+    ensureAnonFirebaseSession().then(() => {
+      showApp({
+        uid: auth.currentUser?.uid || 'admin-fixed',
+        email: 'Master Admin · chanbomaydi'
+      });
+    });
+  }
+} catch {}
+</script>
+</body>
+</html>
