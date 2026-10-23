@@ -40,6 +40,140 @@ input,textarea,select,.allow-select{
   -ms-user-select:text!important;
   user-select:text!important;
 }
+
+/* Custom Web UI Select Dropdown (Replaces Browser Native <select>) */
+select.native-select-hidden{
+  position:absolute!important;
+  width:1px!important;
+  height:1px!important;
+  padding:0!important;
+  margin:-1px!important;
+  overflow:hidden!important;
+  clip:rect(0,0,0,0)!important;
+  white-space:nowrap!important;
+  border:0!important;
+  opacity:0!important;
+  pointer-events:none!important;
+}
+.custom-select-ui{
+  position:relative;
+  width:100%;
+  user-select:none;
+  z-index:12;
+}
+.custom-select-ui.open{
+  z-index:95;
+}
+.custom-select-trigger{
+  width:100%;
+  min-height:42px;
+  padding:10px 13px;
+  border-radius:12px;
+  border:1px solid rgba(112,240,237,.28);
+  background:linear-gradient(135deg,rgba(12,19,36,.95),rgba(7,12,24,.98));
+  color:var(--text);
+  font-size:12px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  cursor:pointer;
+  transition:border-color .2s,box-shadow .2s;
+  text-align:left;
+}
+.custom-select-trigger:hover{
+  border-color:var(--cyan);
+}
+.custom-select-ui.open .custom-select-trigger{
+  border-color:var(--cyan);
+  box-shadow:0 0 0 3px rgba(112,240,237,.16);
+}
+.cs-trigger-left{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:0;
+  flex:1;
+}
+.cs-dot{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:var(--cyan);
+  box-shadow:0 0 8px var(--cyan);
+  flex-shrink:0;
+}
+.cs-label-text{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#fff;
+  font-weight:800;
+}
+.cs-arrow{
+  width:22px;
+  height:22px;
+  border-radius:7px;
+  background:rgba(112,240,237,.1);
+  border:1px solid rgba(112,240,237,.25);
+  color:var(--cyan);
+  display:grid;
+  place-items:center;
+  flex-shrink:0;
+  transition:transform .2s;
+}
+.custom-select-ui.open .cs-arrow{
+  transform:rotate(180deg);
+  background:var(--cyan);
+  color:#06101e;
+}
+.custom-select-menu{
+  position:absolute;
+  top:calc(100% + 6px);
+  left:0;
+  right:0;
+  max-height:250px;
+  overflow-y:auto;
+  border-radius:14px;
+  padding:6px;
+  background:rgba(10,16,31,.98);
+  border:1px solid rgba(112,240,237,.42);
+  box-shadow:0 20px 55px rgba(0,0,0,.75);
+  display:none;
+  flex-direction:column;
+  gap:4px;
+}
+.custom-select-ui.open .custom-select-menu{
+  display:flex;
+}
+.custom-select-option{
+  width:100%;
+  padding:9px 11px;
+  border-radius:9px;
+  border:1px solid transparent;
+  background:rgba(255,255,255,.025);
+  color:#d2ddf4;
+  font-size:11px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  cursor:pointer;
+  text-align:left;
+}
+.custom-select-option:hover{
+  background:rgba(112,240,237,.12);
+  border-color:rgba(112,240,237,.28);
+  color:#fff;
+}
+.custom-select-option.selected{
+  background:linear-gradient(110deg,rgba(112,240,237,.2),rgba(130,146,255,.18));
+  border-color:var(--cyan);
+  color:var(--cyan);
+}
+
 input::selection,textarea::selection,.allow-select::selection{
   background:rgba(112,240,237,.25);
   color:#fff;
@@ -53,6 +187,13 @@ body{
   overflow-x:hidden;
   min-height:100vh;
 }
+body.modal-open{
+  overflow:hidden;
+}
+body.modal-open .scroll-float{
+  opacity:0;
+  pointer-events:none;
+}
 #shaderCanvas{
   position:fixed;
   inset:0;
@@ -64,6 +205,16 @@ body{
 button,input,textarea,select{font:inherit}
 button{cursor:pointer}
 img,video{max-width:100%;display:block;-webkit-user-drag:none}
+.svg-ico{
+  width:15px;
+  height:15px;
+  stroke:currentColor;
+  stroke-width:2;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  fill:none;
+  flex-shrink:0;
+}
 .hidden{display:none!important}
 .muted{color:var(--muted)}
 a{color:var(--cyan);text-decoration:none}
@@ -200,6 +351,7 @@ a{color:var(--cyan);text-decoration:none}
   justify-content:center;
   gap:7px;
   transition:transform .2s,filter .2s,border-color .2s,box-shadow .2s;
+  white-space:nowrap;
 }
 .btn:hover{transform:translateY(-1px);filter:brightness(1.08)}
 .btn:active{transform:translateY(0)}
@@ -264,11 +416,12 @@ a{color:var(--cyan);text-decoration:none}
   background:linear-gradient(130deg,var(--cyan),var(--blue));
   color:#08111b;
   box-shadow:0 6px 22px rgba(112,240,237,.3);
+  flex-shrink:0;
 }
 .login-card h1{
   font-size:28px;
   letter-spacing:-.05em;
-  margin:24px 0 8px;
+  margin:22px 0 8px;
 }
 .login-card p{
   font-size:12px;
@@ -340,7 +493,7 @@ a{color:var(--cyan);text-decoration:none}
   position:relative;
   z-index:2;
   display:grid;
-  grid-template-columns:255px minmax(0,1fr);
+  grid-template-columns:250px minmax(0,1fr);
   min-height:100vh;
 }
 .sidebar{
@@ -349,7 +502,7 @@ a{color:var(--cyan);text-decoration:none}
   height:100vh;
   padding:22px 15px;
   border-right:1px solid rgba(255,255,255,.08);
-  background:rgba(8,13,24,.88);
+  background:rgba(8,13,24,.9);
   backdrop-filter:blur(22px);
   display:flex;
   flex-direction:column;
@@ -369,7 +522,7 @@ a{color:var(--cyan);text-decoration:none}
 .side-nav button{
   display:flex;
   align-items:center;
-  gap:12px;
+  gap:11px;
   text-align:left;
   border:1px solid transparent;
   border-radius:12px;
@@ -385,10 +538,12 @@ a{color:var(--cyan);text-decoration:none}
   background:rgba(255,255,255,.04);
 }
 .side-nav button .ico{
-  width:19px;
-  text-align:center;
-  font-size:14px;
+  width:18px;
+  height:18px;
+  display:grid;
+  place-items:center;
   color:#7e8caf;
+  flex-shrink:0;
 }
 .side-nav button.active{
   color:var(--cyan);
@@ -442,6 +597,37 @@ a{color:var(--cyan);text-decoration:none}
   border-radius:50%;
   background:var(--green);
   box-shadow:0 0 12px var(--green);
+}
+
+/* Integrated Sub-Tabs inside Orders Panel (No Separate Nạp tiền Sidebar Tab) */
+.admin-subtabs{
+  display:inline-flex;
+  flex-wrap:wrap;
+  gap:6px;
+  padding:5px;
+  border-radius:14px;
+  background:rgba(11,17,32,.9);
+  border:1px solid var(--line);
+  margin-bottom:18px;
+}
+.admin-subtab-btn{
+  padding:9px 14px;
+  border-radius:10px;
+  border:1px solid transparent;
+  background:transparent;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:800;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  transition:.2s;
+}
+.admin-subtab-btn:hover{color:var(--text)}
+.admin-subtab-btn.active{
+  background:linear-gradient(110deg,rgba(112,240,237,.16),rgba(130,146,255,.14));
+  color:var(--cyan);
+  border-color:rgba(112,240,237,.32);
 }
 
 .stats-grid{
@@ -525,7 +711,7 @@ tr:last-child td{border-bottom:0}
   outline:none;
 }
 
-/* Admin Swipe Deck Preview for Gallery & Videos */
+/* Admin Swipe Deck Preview with Auto Orientation (Landscape / Portrait) */
 .admin-deck-wrap{
   position:relative;
   overflow:hidden;
@@ -533,6 +719,7 @@ tr:last-child td{border-bottom:0}
 }
 .admin-deck-track{
   display:flex;
+  align-items:stretch;
   gap:14px;
   overflow-x:auto;
   scroll-snap-type:x mandatory;
@@ -543,29 +730,43 @@ tr:last-child td{border-bottom:0}
 .admin-deck-track::-webkit-scrollbar{display:none}
 .admin-deck-track.dragging{cursor:grabbing;scroll-snap-type:none}
 .admin-deck-card{
-  flex:0 0 240px;
+  flex:0 0 260px;
   scroll-snap-align:start;
   border-radius:16px;
   overflow:hidden;
   border:1px solid var(--line);
   background:#0b1120;
   position:relative;
-  transition:transform .25s,border-color .25s;
+  display:flex;
+  flex-direction:column;
+  transition:transform .25s,border-color .25s,flex-basis .25s;
+}
+.admin-deck-card[data-orientation="landscape"]{
+  flex:0 0 310px;
+}
+.admin-deck-card[data-orientation="portrait"]{
+  flex:0 0 205px;
 }
 .admin-deck-card:hover{
   transform:translateY(-3px);
   border-color:rgba(112,240,237,.5);
 }
 .admin-deck-media{
-  height:155px;
-  background:#070b14;
+  min-height:160px;
+  max-height:270px;
+  background:#050811;
   position:relative;
   overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex:1;
 }
 .admin-deck-media img,.admin-deck-media video{
   width:100%;
-  height:100%;
-  object-fit:cover;
+  height:auto;
+  max-height:260px;
+  object-fit:contain;
 }
 .admin-deck-meta{
   padding:11px 13px;
@@ -573,6 +774,7 @@ tr:last-child td{border-bottom:0}
   justify-content:space-between;
   align-items:center;
   gap:8px;
+  border-top:1px solid rgba(255,255,255,.06);
 }
 .admin-deck-meta strong{
   font-size:11px;
@@ -583,7 +785,7 @@ tr:last-child td{border-bottom:0}
 
 .modal-bg{
   position:fixed;
-  z-index:80;
+  z-index:85;
   inset:0;
   background:rgba(3,5,11,.78);
   backdrop-filter:blur(10px);
@@ -657,6 +859,7 @@ tr:last-child td{border-bottom:0}
   display:flex;
   flex-direction:column;
   gap:7px;
+  transition:opacity .25s;
 }
 .scroll-btn{
   width:38px;
@@ -667,8 +870,6 @@ tr:last-child td{border-bottom:0}
   color:var(--cyan);
   display:grid;
   place-items:center;
-  font-size:14px;
-  font-weight:900;
   backdrop-filter:blur(12px);
   box-shadow:0 10px 26px rgba(0,0,0,.35);
   transition:.2s;
@@ -684,7 +885,6 @@ tr:last-child td{border-bottom:0}
   .sidebar .brand{padding:0;justify-content:center}
   .sidebar .brand-text,.side-label,.side-nav button .nav-text,.user-mini{display:none}
   .side-nav button{justify-content:center;padding:13px 5px}
-  .side-nav button .ico{font-size:17px}
   .stats-grid{grid-template-columns:repeat(2,1fr)}
   .side-bottom{display:flex;justify-content:center}
   .form-grid{grid-template-columns:1fr}
@@ -720,7 +920,6 @@ tr:last-child td{border-bottom:0}
     border-radius:10px;
     font-size:8px;
   }
-  .side-nav button .ico{font-size:14px;width:auto}
   .side-nav button .nav-text{display:block;font-size:8px}
   .main{padding:18px 13px 104px}
   .topbar{align-items:flex-start;flex-direction:column;margin-bottom:18px}
@@ -758,7 +957,9 @@ tr:last-child td{border-bottom:0}
       <circle class="loader-bar" id="loaderBar" cx="68" cy="68" r="58"></circle>
     </svg>
     <div class="loader-core">
-      <div class="loader-logo">K</div>
+      <div class="loader-logo">
+        <svg viewBox="0 0 24 24" class="svg-ico" style="width:20px;height:20px;stroke:#07101c;stroke-width:2.5"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/><line x1="12" y1="22" x2="12" y2="15.5"/><polyline points="22 8.5 12 15.5 2 8.5"/></svg>
+      </div>
       <div class="loader-pct" id="loaderPct">0%</div>
     </div>
   </div>
@@ -769,7 +970,9 @@ tr:last-child td{border-bottom:0}
 <section id="loginScreen" class="login-screen">
   <div class="login-card glass scroll-reveal in-view">
     <div class="brand">
-      <span class="brand-icon">K</span>
+      <span class="brand-icon">
+        <svg viewBox="0 0 24 24" class="svg-ico" style="width:20px;height:20px;stroke:#08111b;stroke-width:2.4"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/><line x1="12" y1="22" x2="12" y2="15.5"/><polyline points="22 8.5 12 15.5 2 8.5"/></svg>
+      </span>
       <span class="brand-text">KEYNOVA<div class="tagline">ADMIN CONSOLE</div></span>
     </div>
     <h1>Đăng nhập quản trị</h1>
@@ -783,47 +986,91 @@ tr:last-child td{border-bottom:0}
         </div>
       </div>
       <div id="loginError" class="login-error"></div>
-      <button class="btn primary" id="loginButton" type="submit" style="width:100%">Đăng nhập an toàn ↗</button>
+      <button class="btn primary" id="loginButton" type="submit" style="width:100%">Đăng nhập an toàn</button>
     </form>
     <div class="setup-hint">
-      <b>Chế độ mật khẩu cố định:</b> Không cần tạo tài khoản admin trên Firebase. Toàn bộ dữ liệu, ảnh mẫu, video mẫu, kho key và đơn hàng được tích hợp gọn trong 2 file duy nhất (<code>index.html</code> &amp; <code>admin.html</code>).
+      <b>Chế độ tích hợp:</b> Mật khẩu cố định quản trị viên kết hợp cùng module <code>bank.js</code> tự động cộng tiền cho tài khoản ACB ONE <b>28233851 (NGUYEN DAI QUOC DAT)</b> theo đúng tên tài khoản đã tạo.
     </div>
     <div style="margin-top:18px;display:flex;justify-content:space-between;align-items:center">
-      <button type="button" class="btn secondary small" id="backToStoreBtn">← Quay lại cửa hàng</button>
-      
+      <button type="button" class="btn secondary small" id="backToStoreBtn">Quay lại cửa hàng</button>
     </div>
   </div>
 </section>
 
-<!-- Main Admin App -->
+<!-- Main Admin App (No Separate Nạp Tiền Tab in Sidebar — Integrated inside Đơn hàng & Tổng quan) -->
 <div id="app" class="app hidden">
   <aside class="sidebar">
     <a class="brand" href="#overview" id="brandHomeLink">
-      <span class="brand-icon">K</span>
+      <span class="brand-icon">
+        <svg viewBox="0 0 24 24" class="svg-ico" style="width:19px;height:19px;stroke:#08111b;stroke-width:2.4"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/><line x1="12" y1="22" x2="12" y2="15.5"/><polyline points="22 8.5 12 15.5 2 8.5"/></svg>
+      </span>
       <span class="brand-text">KEYNOVA<div class="tagline">ADMIN CONSOLE</div></span>
     </a>
     <div>
       <div class="side-label">WORKSPACE</div>
       <nav class="side-nav" id="sideNav">
-        <button class="active" data-panel="overview"><span class="ico">◫</span><span class="nav-text">Tổng quan</span></button>
-        <button data-panel="settings"><span class="ico">⚙</span><span class="nav-text">Nội dung trang</span></button>
-        <button data-panel="categories"><span class="ico">▦</span><span class="nav-text">Danh mục</span></button>
-        <button data-panel="products"><span class="ico">◈</span><span class="nav-text">Sản phẩm</span></button>
-        <button data-panel="gallery"><span class="ico">▧</span><span class="nav-text">Ảnh mẫu</span></button>
-        <button data-panel="videos"><span class="ico">▶</span><span class="nav-text">Video mẫu</span></button>
-        <button data-panel="reviews"><span class="ico">☆</span><span class="nav-text">Feedback</span></button>
-        <button data-panel="faqs"><span class="ico">?</span><span class="nav-text">FAQ</span></button>
-        <button data-panel="plans"><span class="ico">◷</span><span class="nav-text">Bảng giá key</span></button>
-        <button data-panel="keys"><span class="ico">⌘</span><span class="nav-text">Kho key</span></button>
-        <button data-panel="freeOffers"><span class="ico">✦</span><span class="nav-text">Key miễn phí</span></button>
-        <button data-panel="orders"><span class="ico">▤</span><span class="nav-text">Đơn hàng</span></button>
-        <button data-panel="rules"><span class="ico">⚡</span><span class="nav-text">Rules tích hợp</span></button>
+        <button class="active" data-panel="overview">
+          <span class="ico"><svg viewBox="0 0 24 24" class="svg-ico"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
+          <span class="nav-text">Tổng quan</span>
+        </button>
+        <button data-panel="settings">
+          <span class="ico"><svg viewBox="0 0 24 24" class="svg-ico"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+          <span class="nav-text">Nội dung trang</span>
+        </button>
+        <button data-panel="categories">
+          <span class="ico"><svg viewBox="0 0 24 24" class="svg-ico"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+          <span class="nav-text">Danh mục</span>
+        </button>
+        <button data-panel="products">
+          <span class="ico"><svg viewBox="0 0 24 24" class="svg-ico"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/><line x1="12" y1="22" x2="12" y2="15.5"/><polyline points="22 8.5 12 15.5 2 8.5"/></svg></span>
+          <span class="nav-text">Sản phẩm</span>
+        </button>
+        <button data-panel="gallery">
+          <span class="ico"><svg viewBox="0 0 24 24" class="svg-ico"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
+          <span class="nav-text">Ảnh mẫu</span>
+        </button>
+        <button data-panel="videos">
+          <span class="ico"><svg viewBox="0 0 24 24" class="svg-ico"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span>
+          <span class="nav-text">Video mẫu</span>
+        </button>
+        <button data-panel="reviews">
+          <span class="ico"><svg viewBox="0 0 24 24" class="svg-ico"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
+          <span class="nav-text">Feedback</span>
+        </button>
+        <button data-panel="faqs">
+          <span class="ico"><svg viewBox="0 0 24 24" class="svg-ico"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+          <span class="nav-text">FAQ</span>
+        </button>
+        <button data-panel="plans">
+          <span class="ico"><svg viewBox="0 0 24 24" class="svg-ico"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+          <span class="nav-text">Bảng giá key</span>
+        </button>
+        <button data-panel="keys">
+          <span class="ico"><svg viewBox="0 0 24 24" class="svg-ico"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></span>
+          <span class="nav-text">Kho key</span>
+        </button>
+        <button data-panel="notifications">
+          <span class="ico"><svg viewBox="0 0 24 24" class="svg-ico"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
+          <span class="nav-text">Thông báo Web</span>
+        </button>
+        <button data-panel="freeOffers">
+          <span class="ico"><svg viewBox="0 0 24 24" class="svg-ico"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/></svg></span>
+          <span class="nav-text">UpKey Free &amp; Vượt Link</span>
+        </button>
+        <button data-panel="orders">
+          <span class="ico"><svg viewBox="0 0 24 24" class="svg-ico"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+          <span class="nav-text">Đơn hàng &amp; Ví</span>
+        </button>
+        <button data-panel="rules">
+          <span class="ico"><svg viewBox="0 0 24 24" class="svg-ico"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+          <span class="nav-text">Rules &amp; Webhook</span>
+        </button>
       </nav>
     </div>
     <div class="side-bottom">
       <div class="user-mini">
         <strong id="adminEmail">Master Admin</strong>
-        <small>Xác thực mật khẩu cố định</small>
+        <small>ACB ONE · 28233851</small>
         <button class="btn secondary small" style="margin-top:10px;width:100%" id="logoutButton">Đăng xuất</button>
       </div>
     </div>
@@ -832,12 +1079,12 @@ tr:last-child td{border-bottom:0}
   <main class="main">
     <header class="topbar scroll-reveal in-view">
       <div>
-        <div class="connection" id="connectionStatus">FIREBASE REALTIME CONNECTED</div>
+        <div class="connection" id="connectionStatus">FIREBASE &amp; BANK.JS WEBHOOK ACTIVE</div>
         <h1 id="pageTitle" style="margin-top:10px">Tổng quan</h1>
-        <p id="pageSub">Theo dõi kho key, sản phẩm, ảnh mẫu, video mẫu và đơn hàng trong một nơi.</p>
+        <p id="pageSub">Theo dõi kho key, sản phẩm, ảnh/video tự nhận diện ngang dọc, đơn hàng và nạp tự động ACB ONE.</p>
       </div>
       <div class="top-actions">
-        <button type="button" class="btn secondary" id="openStoreBtn">Mở cửa hàng ↗</button>
+        <button type="button" class="btn secondary" id="openStoreBtn">Mở cửa hàng</button>
         <button type="button" class="btn secondary" id="topLogout">Đăng xuất</button>
       </div>
     </header>
@@ -850,7 +1097,7 @@ tr:last-child td{border-bottom:0}
   <section class="modal glass">
     <div class="modal-header">
       <h2 id="editorTitle">Thêm mục</h2>
-      <button type="button" class="btn secondary small" id="editorClose">Đóng ✕</button>
+      <button type="button" class="btn secondary small" id="editorClose">Đóng</button>
     </div>
     <p id="editorHelp">Nội dung được lưu trực tiếp vào Firebase Realtime Database.</p>
     <form id="editorForm">
@@ -863,12 +1110,12 @@ tr:last-child td{border-bottom:0}
   </section>
 </div>
 
-<!-- In-page Confirm Modal (replaces window.confirm) -->
+<!-- In-page Confirm Modal -->
 <div class="modal-bg" id="confirmBg">
   <section class="modal glass" style="width:min(420px,100%)">
     <div class="modal-header">
       <h2>Xác nhận thao tác</h2>
-      <button type="button" class="btn secondary small" id="confirmCloseBtn">✕</button>
+      <button type="button" class="btn secondary small" id="confirmCloseBtn">Đóng</button>
     </div>
     <p id="confirmMessage" style="font-size:12px;color:var(--text);line-height:1.75;margin:10px 0 18px"></p>
     <div class="action-row" style="justify-content:flex-end">
@@ -878,19 +1125,441 @@ tr:last-child td{border-bottom:0}
   </section>
 </div>
 
+<!-- Balance Adjustment Modal for User Management -->
+<div class="modal-bg" id="balanceModalBg">
+  <section class="modal glass" style="width:min(440px,100%)">
+    <div class="modal-header">
+      <h2 id="balanceModalTitle">Điều chỉnh số dư</h2>
+      <button type="button" class="btn secondary small" id="balanceModalClose">Đóng</button>
+    </div>
+    <p id="balanceModalSub">Cộng hoặc trừ số dư trực tiếp vào tài khoản người dùng.</p>
+    <form id="balanceAdjustForm">
+      <input type="hidden" id="balTargetUid">
+      <input type="hidden" id="balActionMode" value="add">
+      <div class="field">
+        <label for="balAmountInput">SỐ TIỀN (VND)</label>
+        <input id="balAmountInput" type="number" min="1000" step="1000" required placeholder="Ví dụ: 50000">
+      </div>
+      <div class="field">
+        <label for="balNoteInput">GHI CHÚ GIAO DỊCH</label>
+        <input id="balNoteInput" placeholder="Ví dụ: Cộng tiền nạp ACB ONE / Thưởng sự kiện">
+      </div>
+      <div class="action-row" style="justify-content:flex-end;margin-top:16px">
+        <button type="button" class="btn secondary" id="balanceModalCancel">Huỷ</button>
+        <button type="submit" class="btn primary" id="balanceModalSubmit">Xác nhận</button>
+      </div>
+    </form>
+  </section>
+</div>
+
 <!-- Scroll Up / Down Floating Controls -->
 <div class="scroll-float">
-  <button type="button" class="scroll-btn" id="scrollUpBtn" aria-label="Lướt lên đầu trang" title="Lướt lên">↑</button>
-  <button type="button" class="scroll-btn" id="scrollDownBtn" aria-label="Lướt xuống cuối trang" title="Lướt xuống">↓</button>
+  <button type="button" class="scroll-btn" id="scrollUpBtn" aria-label="Lướt lên đầu trang" title="Lướt lên">
+    <svg viewBox="0 0 24 24" class="svg-ico"><polyline points="18 15 12 9 6 15"/></svg>
+  </button>
+  <button type="button" class="scroll-btn" id="scrollDownBtn" aria-label="Lướt xuống cuối trang" title="Lướt xuống">
+    <svg viewBox="0 0 24 24" class="svg-ico"><polyline points="6 9 12 15 18 9"/></svg>
+  </button>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
-import {getDatabase,ref,get,set,update,remove,push,onValue,runTransaction} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js';
-import {getStorage,ref as storageRef,uploadBytes,getDownloadURL} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js';
-import {getAuth,signInAnonymously,signOut} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import {getDatabase,ref,get,set,update,remove,push,onValue,runTransaction} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js';
+import {getStorage,ref as storageRef,uploadBytes,getDownloadURL} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js';
+import {getAuth,signInAnonymously,signOut} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+/**
+ * KEYNOVA · ACB ONE Bank Webhook & Firebase Auto-Topup Module (bank.js)
+ * ---------------------------------------------------------------------
+ * Ngân hàng: ACB ONE (Ngân hàng Á Châu - ACB)
+ * Số tài khoản: 28233851
+ * Chủ tài khoản: NGUYEN DAI QUOC DAT
+ *
+ * Hỗ trợ:
+ * 1. Tích hợp trực tiếp trên trình duyệt (ES Module cho index.html & admin.html):
+ *    - Tự động tạo mã VietQR ACB ONE theo số tiền và tên tài khoản đã tạo.
+ *    - Lắng nghe nhánh `bankWebhooksQueue` trên Firebase Realtime Database để tự động
+ *      đối soát nội dung chuyển khoản theo đúng tên tài khoản đã tạo và cộng tiền 24/7.
+ * 2. Chạy độc lập như Webhook Server (Node.js / Express / Vercel / Cloudflare Workers):
+ *    - Nhận POST Webhook từ SePay, Casso, Web2M hoặc thông báo biến động số dư ACB ONE.
+ *    - Khớp tên tài khoản người dùng từ nội dung chuyển khoản, chống trùng lặp mã GD
+ *      qua `processedBankTx/{txId}` và cộng số dư trực tiếp vào `users/{uid}/balance`.
+ */
+
+const BANK_CONFIG = {
+  bankCode: 'ACB',
+  bankBin: '970416',
+  bankName: 'ACB ONE',
+  bankFullName: 'ACB ONE - Ngân hàng TMCP Á Châu (ACB)',
+  accountNumber: '28233851',
+  accountOwner: 'NGUYEN DAI QUOC DAT',
+  firebaseDatabaseUrl: 'https://ideo-dd376-default-rtdb.asia-southeast1.firebasedatabase.app'
+};
+
+/**
+ * Chuẩn hoá tên tài khoản để so khớp chính xác trong nội dung chuyển khoản
+ * (Không phân biệt hoa thường, bỏ dấu tiếng Việt và ký tự đặc biệt thừa)
+ */
+function normalizeAccountKey(str) {
+  return String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/gi, 'd')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '');
+}
+
+/**
+ * Chuẩn hoá chuỗi chỉ giữ chữ và số viết hoa để đối soát nội dung chuyển khoản ngân hàng
+ * (Ngân hàng thường loại bỏ dấu cách hoặc ký tự đặc biệt trong nội dung giao dịch)
+ */
+function normalizeAlphaNum(str) {
+  return String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/gi, 'd')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+}
+
+/**
+ * Lấy đúng tên tài khoản đã tạo của người dùng để làm nội dung chuyển khoản
+ */
+function getAccountTransferContent(user, userProfile = {}) {
+  if (!user || user.isAnonymous) return '';
+  const candidates = [
+    userProfile?.accountName,
+    userProfile?.username,
+    userProfile?.rawIdentifier,
+    user?.displayName,
+    user?.email ? String(user.email).split('@')[0] : ''
+  ];
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const base = String(raw).includes('@') ? String(raw).split('@')[0] : String(raw);
+    const cleaned = base
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/gi, 'd')
+      .trim()
+      .replace(/[^a-zA-Z0-9_-]/g, '');
+    if (cleaned) return cleaned;
+  }
+  return String(user.uid || '').slice(0, 12);
+}
+
+/**
+ * Tạo link mã QR chuẩn VietQR cho tài khoản ACB ONE 28233851 - NGUYEN DAI QUOC DAT
+ */
+function buildAcbVietQrUrl(amount = 50000, transferContent = '') {
+  const cleanAmount = Math.max(0, Math.round(Number(amount) || 0));
+  const content = String(transferContent || '').trim();
+  const params = new URLSearchParams();
+  if (cleanAmount > 0) params.set('amount', String(cleanAmount));
+  if (content) params.set('addInfo', content);
+  params.set('accountName', BANK_CONFIG.accountOwner);
+  return `https://img.vietqr.io/image/${BANK_CONFIG.bankCode}-${BANK_CONFIG.accountNumber}-compact2.png?${params.toString()}`;
+}
+
+/**
+ * Phân tích dữ liệu Webhook từ nhiều cổng (SePay, Casso, Web2M, ACB ONE hoặc Custom JSON)
+ */
+function parseWebhookTransactions(payload) {
+  if (!payload || typeof payload !== 'object') return [];
+
+  // Trường hợp Casso / Web2M gửi mảng `data` hoặc `transactions`
+  const rawList = Array.isArray(payload.data)
+    ? payload.data
+    : Array.isArray(payload.transactions)
+    ? payload.transactions
+    : [payload];
+
+  const normalized = [];
+  for (const item of rawList) {
+    if (!item || typeof item !== 'object') continue;
+
+    // Chỉ nhận giao dịch tiền vào (IN / credit)
+    const transferType = String(item.transferType || item.type || item.direction || 'in').toLowerCase();
+    if (['out', 'debit', 'expense'].includes(transferType)) continue;
+
+    const amount = Number(
+      item.transferAmount ??
+      item.amount ??
+      item.money ??
+      item.value ??
+      item.creditAmount ??
+      0
+    );
+    if (!Number.isFinite(amount) || amount <= 0) continue;
+
+    const description = String(
+      item.content ??
+      item.description ??
+      item.addInfo ??
+      item.remark ??
+      item.transactionContent ??
+      item.memo ??
+      ''
+    ).trim();
+
+    const rawTxId = String(
+      item.id ??
+      item.referenceCode ??
+      item.tid ??
+      item.transactionId ??
+      item.txId ??
+      item.code ??
+      `${Date.now()}_${Math.round(amount)}`
+    ).trim();
+
+    const txId = rawTxId.replace(/[.#$/[\]\s]/g, '_');
+
+    const accountNumber = String(
+      item.accountNumber ??
+      item.subAccount ??
+      item.receiverAccount ??
+      BANK_CONFIG.accountNumber
+    ).trim();
+
+    normalized.push({
+      txId,
+      rawTxId,
+      amount: Math.round(amount),
+      description,
+      accountNumber,
+      bankName: BANK_CONFIG.bankName,
+      accountOwner: BANK_CONFIG.accountOwner,
+      timestamp: Number(item.when || item.transactionDate || item.createdAt || Date.now()) || Date.now()
+    });
+  }
+  return normalized;
+}
+
+/**
+ * Tìm tài khoản người dùng khớp với nội dung chuyển khoản dựa trên tên tài khoản đã tạo
+ */
+function matchUserByTransferContent(description, usersMap = {}) {
+  const rawDesc = String(description || '').trim();
+  if (!rawDesc) return null;
+
+  const descLower = rawDesc.toLowerCase();
+  const descAlphaNum = normalizeAlphaNum(rawDesc);
+  const tokens = rawDesc
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/gi, 'd')
+    .split(/[\s,.;:|\-/+]+/)
+    .map(t => t.trim().toLowerCase())
+    .filter(Boolean);
+
+  const candidates = [];
+  for (const [uid, u] of Object.entries(usersMap || {})) {
+    if (!u || typeof u !== 'object') continue;
+    const rawUsername = u.accountName || u.username || (u.rawIdentifier ? String(u.rawIdentifier).split('@')[0] : '') || (u.email ? String(u.email).split('@')[0] : '') || u.displayName || '';
+    const cleanKey = normalizeAccountKey(rawUsername);
+    const alphaKey = normalizeAlphaNum(rawUsername);
+    if (!cleanKey && !alphaKey) continue;
+
+    // Ưu tiên 1: Khớp chính xác toàn bộ nội dung chuyển khoản = tên tài khoản
+    if (normalizeAccountKey(rawDesc) === cleanKey || (alphaKey.length >= 3 && descAlphaNum === alphaKey)) {
+      return { uid, user: u, matchedAccountName: rawUsername, confidence: 100 };
+    }
+
+    // Ưu tiên 2: Tên tài khoản xuất hiện như một từ độc lập trong nội dung chuyển khoản
+    if (cleanKey.length >= 3 && tokens.includes(cleanKey)) {
+      candidates.push({ uid, user: u, matchedAccountName: rawUsername, confidence: 90, len: cleanKey.length });
+      continue;
+    }
+
+    // Ưu tiên 3: Nội dung ngân hàng viết liền không dấu chứa tên tài khoản (độ dài >= 4 ký tự)
+    if (alphaKey.length >= 4 && descAlphaNum.includes(alphaKey)) {
+      candidates.push({ uid, user: u, matchedAccountName: rawUsername, confidence: 75, len: alphaKey.length });
+      continue;
+    }
+
+    // Ưu tiên 4: Khớp theo displayName nếu người dùng ghi tên hiển thị
+    const dispAlpha = normalizeAlphaNum(u.displayName || '');
+    if (dispAlpha.length >= 4 && (descAlphaNum === dispAlpha || descLower.includes(String(u.displayName || '').toLowerCase()))) {
+      candidates.push({ uid, user: u, matchedAccountName: u.displayName, confidence: 65, len: dispAlpha.length });
+    }
+  }
+
+  if (!candidates.length) return null;
+  // Sắp xếp theo độ ưu tiên và độ dài tên tài khoản dài nhất (tránh khớp nhầm chuỗi con ngắn)
+  candidates.sort((a, b) => (b.confidence - a.confidence) || (b.len - a.len));
+  return candidates[0];
+}
+
+/**
+ * Xử lý cộng tiền tự động trên trình duyệt / Admin qua Firebase SDK v12
+ */
+async function processBankWebhookWithFirebaseSdk({ db, firebaseFns, payload }) {
+  const { ref, get, set, update, push, runTransaction } = firebaseFns;
+  const txList = parseWebhookTransactions(payload);
+  if (!txList.length) {
+    return { ok: false, processed: 0, message: 'Không có giao dịch hợp lệ trong payload.' };
+  }
+
+  const usersSnap = await get(ref(db, 'users'));
+  const usersMap = usersSnap.val() || {};
+  const depositsSnap = await get(ref(db, 'deposits'));
+  const allDeposits = depositsSnap.val() || {};
+
+  const results = [];
+
+  for (const tx of txList) {
+    // Kiểm tra số tài khoản nếu webhook có gửi kèm
+    if (
+      tx.accountNumber &&
+      !tx.accountNumber.includes(BANK_CONFIG.accountNumber) &&
+      tx.accountNumber !== BANK_CONFIG.accountNumber
+    ) {
+      results.push({ txId: tx.txId, status: 'skipped_wrong_account', accountNumber: tx.accountNumber });
+      continue;
+    }
+
+    // Khớp tên tài khoản đã tạo từ nội dung chuyển khoản
+    const matched = matchUserByTransferContent(tx.description, usersMap);
+    if (!matched) {
+      results.push({
+        txId: tx.txId,
+        status: 'unmatched_account_name',
+        description: tx.description,
+        amount: tx.amount
+      });
+      continue;
+    }
+
+    const { uid, user, matchedAccountName } = matched;
+
+    // Chống cộng trùng lặp bằng transaction trên `processedBankTx/{txId}`
+    const lockRef = ref(db, `processedBankTx/${tx.txId}`);
+    const lockTx = await runTransaction(lockRef, cur => {
+      if (cur !== null) return; // Đã xử lý trước đó
+      return {
+        txId: tx.txId,
+        uid,
+        matchedAccountName,
+        amount: tx.amount,
+        description: tx.description,
+        bankName: BANK_CONFIG.bankName,
+        accountNumber: BANK_CONFIG.accountNumber,
+        accountOwner: BANK_CONFIG.accountOwner,
+        processedAt: Date.now()
+      };
+    });
+
+    if (!lockTx.committed) {
+      results.push({ txId: tx.txId, status: 'duplicate_ignored', uid });
+      continue;
+    }
+
+    // Cộng số dư trực tiếp vào `users/{uid}/balance`
+    const balRef = ref(db, `users/${uid}/balance`);
+    const balTx = await runTransaction(balRef, cur => (Number(cur) || 0) + tx.amount);
+    const newBalance = Number(balTx.snapshot.val()) || tx.amount;
+
+    // Tự động duyệt lệnh nạp đang chờ (nếu khách có bấm tạo lệnh trước đó)
+    const userDeps = allDeposits[uid] || {};
+    let matchedDepositId = null;
+    for (const [depId, dep] of Object.entries(userDeps)) {
+      if (dep && dep.status === 'pending' && Number(dep.amount) === tx.amount) {
+        matchedDepositId = depId;
+        break;
+      }
+    }
+
+    if (matchedDepositId) {
+      await update(ref(db, `deposits/${uid}/${matchedDepositId}`), {
+        status: 'approved',
+        webhookTxId: tx.txId,
+        processedAt: Date.now()
+      });
+    } else {
+      const newDepRef = push(ref(db, `deposits/${uid}`));
+      await set(newDepRef, {
+        uid,
+        userName: user.displayName || matchedAccountName,
+        accountName: matchedAccountName,
+        userEmail: user.email || '',
+        amount: tx.amount,
+        method: `${BANK_CONFIG.bankName} (${BANK_CONFIG.accountNumber})`,
+        txCode: tx.description || tx.rawTxId,
+        webhookTxId: tx.txId,
+        status: 'approved',
+        createdAt: Date.now(),
+        processedAt: Date.now()
+      });
+    }
+
+    // Lưu vào lịch sử giao dịch
+    const txHistoryRef = push(ref(db, `transactions/${uid}`));
+    await set(txHistoryRef, {
+      type: 'webhook_deposit',
+      title: `Nạp tự động ${BANK_CONFIG.bankName} (+${tx.amount.toLocaleString('vi-VN')}đ)`,
+      amount: tx.amount,
+      balanceAfter: newBalance,
+      detail: `TK nhận: ${BANK_CONFIG.accountNumber} (${BANK_CONFIG.accountOwner}) · Nội dung: ${tx.description} · Khớp TK: ${matchedAccountName}`,
+      status: 'completed',
+      userEmail: user.email || '',
+      webhookTxId: tx.txId,
+      createdAt: Date.now()
+    });
+
+    results.push({
+      txId: tx.txId,
+      status: 'credited',
+      uid,
+      matchedAccountName,
+      amount: tx.amount,
+      newBalance
+    });
+  }
+
+  return {
+    ok: true,
+    processed: results.filter(r => r.status === 'credited').length,
+    results
+  };
+}
+
+/**
+ * Lắng nghe nhánh `bankWebhooksQueue` trên Firebase Realtime Database
+ * để tự động xử lý mọi giao dịch Webhook đổ về Firebase REST API
+ */
+function startBankWebhookListener({ db, firebaseFns, onCredited }) {
+  const { ref, onValue, update } = firebaseFns;
+  const queueRef = ref(db, 'bankWebhooksQueue');
+  return onValue(queueRef, async snap => {
+    const queue = snap.val() || {};
+    for (const [queueId, item] of Object.entries(queue)) {
+      if (!item || item.processed) continue;
+      try {
+        const res = await processBankWebhookWithFirebaseSdk({
+          db,
+          firebaseFns,
+          payload: item.payload || item
+        });
+        await update(ref(db, `bankWebhooksQueue/${queueId}`), {
+          processed: true,
+          processedAt: Date.now(),
+          result: res
+        });
+        if (res.processed > 0 && typeof onCredited === 'function') {
+          onCredited(res);
+        }
+      } catch (err) {
+        console.warn('Bank webhook queue item error:', err);
+      }
+    }
+  });
+}
+
+
+
+
 
 const ADMIN_FIXED_PASS = 'chanbomaydi';
 const SESSION_KEY = 'keynova_admin_unlocked_v2';
@@ -915,7 +1584,17 @@ let currentUser = null,
     store = {},
     orders = {},
     vault = {},
+    deposits = {},
+    cardCharges = {},
+    transactions = {},
+    usersMap = {},
+    freeKeyVault = {},
+    freeClaimsByIp = {},
+    freeKeyClaims = {},
+    preselectedFreeTier = '',
+    preselectedKeyProduct = '',
     activePanel = 'overview',
+    activeOrdersSubtab = 'all',
     editorCollection = '',
     editorId = '',
     toastTimer,
@@ -926,15 +1605,55 @@ const entries = o => Object.entries(o || {}).map(([id, v]) => ({id, ...(v || {})
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = n => new Intl.NumberFormat('vi-VN', {style:'currency', currency:'VND', maximumFractionDigits:0}).format(Number(n) || 0);
 
+function syncModalOpenClass() {
+  const anyOpen = document.querySelectorAll('.modal-bg.open').length > 0;
+  document.body.classList.toggle('modal-open', anyOpen);
+}
+
+/* Auto-detect Horizontal vs Vertical Orientation for Admin Media Previews */
+function classifyOrientation(w, h) {
+  if (!w || !h) return { type: 'landscape', label: 'HD' };
+  if (w > h * 1.08) return { type: 'landscape', label: `NGANG · ${w}×${h}` };
+  if (h > w * 1.08) return { type: 'portrait', label: `DỌC · ${w}×${h}` };
+  return { type: 'square', label: `VUÔNG · ${w}×${h}` };
+}
+
+function attachAdminMediaOrientation(root = document) {
+  root.querySelectorAll('.admin-deck-card img').forEach(img => {
+    const apply = () => {
+      if (!img.naturalWidth || !img.naturalHeight) return;
+      const info = classifyOrientation(img.naturalWidth, img.naturalHeight);
+      const card = img.closest('.admin-deck-card');
+      if (card) card.setAttribute('data-orientation', info.type);
+      const pill = card?.querySelector('[data-deck-orient]');
+      if (pill) pill.textContent = info.label;
+    };
+    if (img.complete && img.naturalWidth) apply();
+    else img.addEventListener('load', apply, { once: true });
+  });
+  root.querySelectorAll('.admin-deck-card video').forEach(vid => {
+    const apply = () => {
+      if (!vid.videoWidth || !vid.videoHeight) return;
+      const info = classifyOrientation(vid.videoWidth, vid.videoHeight);
+      const card = vid.closest('.admin-deck-card');
+      if (card) card.setAttribute('data-orientation', info.type);
+      const pill = card?.querySelector('[data-deck-orient]');
+      if (pill) pill.textContent = info.label;
+    };
+    if (vid.readyState >= 1 && vid.videoWidth) apply();
+    vid.addEventListener('loadedmetadata', apply);
+  });
+}
+
 /* Anti-Copy & Selection Protection */
 document.addEventListener('contextmenu', e => {
-  if (!e.target.closest('input, textarea, .allow-select')) e.preventDefault();
+  if (!e.target.closest('input, textarea, select, video, .allow-select')) e.preventDefault();
 });
 document.addEventListener('selectstart', e => {
-  if (!e.target.closest('input, textarea, .allow-select')) e.preventDefault();
+  if (!e.target.closest('input, textarea, select, video, .allow-select')) e.preventDefault();
 });
 document.addEventListener('dragstart', e => {
-  if (!e.target.closest('input, textarea')) e.preventDefault();
+  if (!e.target.closest('input, textarea, select, video')) e.preventDefault();
 });
 document.addEventListener('keydown', e => {
   const inInput = e.target && e.target.closest && e.target.closest('input, textarea, .allow-select');
@@ -971,7 +1690,7 @@ setTimeout(() => {
   setLoaderProgress(100, 'HOÀN TẤT');
 }, 950);
 
-/* Real WebGL GLSL Background Shader */
+/* Lightweight WebGL Background Shader */
 function initWebGLShader() {
   const canvas = $('shaderCanvas');
   if (!canvas) return;
@@ -1008,7 +1727,7 @@ function initWebGLShader() {
       float v = 0.0;
       float a = 0.5;
       mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);
-      for (int i = 0; i < 5; i++) {
+      for (int i = 0; i < 2; i++) {
         v += a * noise(p);
         p = rot * p * 2.02 + vec2(0.12 * u_time, -0.08 * u_time);
         a *= 0.5;
@@ -1089,9 +1808,9 @@ function initWebGLShader() {
   });
 
   function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
-    canvas.width = Math.floor(window.innerWidth * dpr);
-    canvas.height = Math.floor(window.innerHeight * dpr);
+    const dpr = 0.5;
+    canvas.width = Math.max(1, Math.floor(window.innerWidth * dpr));
+    canvas.height = Math.max(1, Math.floor(window.innerHeight * dpr));
     gl.viewport(0, 0, canvas.width, canvas.height);
   }
   resize();
@@ -1153,10 +1872,12 @@ function askConfirm(msg) {
     confirmResolver = resolve;
     $('confirmMessage').textContent = msg;
     $('confirmBg').classList.add('open');
+    syncModalOpenClass();
   });
 }
 function closeConfirm(result) {
   $('confirmBg').classList.remove('open');
+  syncModalOpenClass();
   if (confirmResolver) {
     const r = confirmResolver;
     confirmResolver = null;
@@ -1170,7 +1891,6 @@ $('confirmBg').addEventListener('click', e => {
   if (e.target === $('confirmBg')) closeConfirm(false);
 });
 
-/* Store Navigation Buttons */
 function goToStore(newTab = false) {
   const target = 'index' + '.html';
   if (newTab) window.open(target, '_blank', 'noopener');
@@ -1183,7 +1903,6 @@ $('brandHomeLink').addEventListener('click', e => {
   renderPanel('overview');
 });
 
-/* Password Show / Hide */
 $('togglePassBtn').addEventListener('click', () => {
   const inp = $('password');
   const isPass = inp.type === 'password';
@@ -1231,10 +1950,13 @@ const settingFields = [
   ['contactTitle','Tiêu đề hỗ trợ','text'],
   ['contactDescription','Mô tả hỗ trợ','textarea'],
   ['contactButtonText','Nhãn nút liên hệ','text'],
+  ['bankName','Tên ngân hàng nhận QR sản phẩm (Mặc định: ACB ONE)','text'],
+  ['bankAccount','Số tài khoản nhận QR sản phẩm (Mặc định: 28233851)','text'],
+  ['bankOwner','Chủ tài khoản nhận QR sản phẩm (Mặc định: NGUYEN DAI QUOC DAT)','text'],
   ['paymentInstructions','Hướng dẫn thanh toán / chuyển khoản','textarea'],
-  ['paymentQrUrl','URL QR thanh toán (hoặc tải QR)','imageurl'],
-  ['myOrdersTitle','Tiêu đề khu vực đơn hàng','text'],
-  ['myOrdersDescription','Mô tả khu vực đơn hàng','textarea'],
+  ['paymentQrUrl','URL QR tuỳ chỉnh (để trống sẽ tự động tạo VietQR ACB ONE 28233851)','imageurl'],
+  ['myOrdersTitle','Tiêu đề khu vực đơn hàng & ví','text'],
+  ['myOrdersDescription','Mô tả khu vực đơn hàng & ví','textarea'],
   ['statProductsLabel','Nhãn thống kê sản phẩm','text'],
   ['statCategoriesLabel','Nhãn thống kê danh mục','text'],
   ['statRequestsValue','Giá trị thống kê thứ ba','text'],
@@ -1259,7 +1981,6 @@ const schemas = {
       ['name','Tên danh mục','text',true],
       ['description','Mô tả','textarea'],
       ['imageUrl','URL ảnh danh mục','url'],
-      ['icon','Ký tự/icon (1 ký tự)','text'],
       ['sortOrder','Thứ tự hiển thị','number'],
       ['active','Hiển thị công khai','checkbox']
     ]
@@ -1322,6 +2043,33 @@ const schemas = {
       ['planId','Thời hạn key','selectPlans',true],
       ['sortOrder','Thứ tự hiển thị','number'],
       ['active','Hiển thị công khai','checkbox']
+    ]
+  },
+  notifications: {
+    title: 'Thông báo Web',
+    fields: [
+      ['title','Tiêu đề thông báo','text',true],
+      ['content','Nội dung thông báo','textarea',true],
+      ['type','Loại thông báo','selectNotifType',true],
+      ['displayStyle','Kiểu hiển thị trên Web','selectNotifStyle',true],
+      ['frequency','Chế độ lặp / Hiện liên tục','selectNotifFreq',true],
+      ['repeatSec','Chu kỳ lặp lại liên tục (Giây, VD: 25)','number'],
+      ['buttonText','Nhãn nút bấm (Tuỳ chọn)','text'],
+      ['buttonUrl','Link khi bấm nút (Tuỳ chọn)','url'],
+      ['sortOrder','Thứ tự ưu tiên','number'],
+      ['active','Bật hiển thị','checkbox']
+    ]
+  },
+  freeTiers: {
+    title: 'Gói vượt link nhận Key Free',
+    fields: [
+      ['title','Tên gói hiển thị (VD: Vượt 2 Link · Nhận Key 3 Ngày)','text',true],
+      ['linksRequired','Số lần vượt link yêu cầu (VD: 1 hoặc 2)','number',true],
+      ['days','Số ngày sử dụng Key nhận được (VD: 1 hoặc 3)','number',true],
+      ['planId','Gói hạn liên kết','selectPlans'],
+      ['description','Mô tả hướng dẫn ngắn','textarea'],
+      ['sortOrder','Thứ tự hiển thị','number'],
+      ['active','Hiển thị cho người dùng chọn','checkbox']
     ]
   },
   faqs: {
@@ -1398,13 +2146,23 @@ function showApp(user) {
 function subscribeData() {
   if (dataSubscribed) return;
   dataSubscribed = true;
+  fetch("https://ideo-dd376-default-rtdb.asia-southeast1.firebasedatabase.app/store.json", { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : null)
+    .then(d => {
+      if (d && typeof d === 'object') {
+        store = d;
+        setLoaderProgress(100, 'ĐÃ ĐỒNG BỘ FIREBASE');
+        renderPanel(activePanel);
+      }
+    }).catch(() => {});
+
   onValue(ref(db, 'store'), s => {
-    store = s.val() || {};
+    store = s.val() || store || {};
     setLoaderProgress(100, 'ĐÃ ĐỒNG BỘ FIREBASE');
     renderPanel(activePanel);
   }, e => {
     console.warn(e);
-    $('connectionStatus').textContent = 'CHECK RULES / OFFLINE';
+    $('connectionStatus').textContent = 'FIREBASE REST ACTIVE';
   });
   onValue(ref(db, 'orders'), s => {
     orders = s.val() || {};
@@ -1412,24 +2170,144 @@ function subscribeData() {
   }, e => console.warn('Orders read notice', e));
   onValue(ref(db, 'keyVault'), s => {
     vault = s.val() || {};
-    if (activePanel === 'keys' || activePanel === 'overview') renderPanel(activePanel);
+    if (['keys','products','overview'].includes(activePanel)) renderPanel(activePanel);
   }, e => console.warn('Vault read notice', e));
+  onValue(ref(db, 'deposits'), s => {
+    deposits = s.val() || {};
+    if (['orders','overview'].includes(activePanel)) renderPanel(activePanel);
+  }, e => console.warn('Deposits read notice', e));
+  onValue(ref(db, 'cardCharges'), s => {
+    cardCharges = s.val() || {};
+    if (['orders','overview'].includes(activePanel)) renderPanel(activePanel);
+  }, e => console.warn('CardCharges read notice', e));
+  onValue(ref(db, 'transactions'), s => {
+    transactions = s.val() || {};
+    if (activePanel === 'orders') renderPanel(activePanel);
+  }, e => console.warn('Transactions read notice', e));
+  onValue(ref(db, 'users'), s => {
+    usersMap = s.val() || {};
+    if (['orders','overview'].includes(activePanel)) renderPanel(activePanel);
+  }, e => console.warn('Users read notice', e));
+  onValue(ref(db, 'freeKeyVault'), s => {
+    freeKeyVault = s.val() || {};
+    if (['freeOffers','overview'].includes(activePanel)) renderPanel(activePanel);
+  }, e => console.warn('freeKeyVault notice', e));
+  onValue(ref(db, 'freeClaimsByIp'), s => {
+    freeClaimsByIp = s.val() || {};
+    if (activePanel === 'freeOffers') renderPanel(activePanel);
+  }, e => console.warn('freeClaimsByIp notice', e));
+  onValue(ref(db, 'freeKeyClaims'), s => {
+    freeKeyClaims = s.val() || {};
+    if (activePanel === 'freeOffers') renderPanel(activePanel);
+  }, e => console.warn('freeKeyClaims notice', e));
+
+  // Activate real-time bank.js and napthe.js webhook listeners
+  startBankWebhookListener({
+    db,
+    firebaseFns: { ref, get, set, update, push, onValue, runTransaction },
+    onCredited: res => {
+      if (res && res.processed > 0) {
+        toast(`Webhook ACB ONE đã tự động cộng tiền cho ${res.processed} giao dịch!`);
+      }
+    }
+  });
+
 }
 
+/* Custom Web UI Select Dropdown Engine for Admin Console */
+function syncCustomSelectUI(selectEl) {
+  if (!selectEl) return;
+  let wrap = selectEl._customSelectWrap;
+  if (!wrap || !wrap.isConnected) {
+    selectEl.classList.add('native-select-hidden');
+    wrap = document.createElement('div');
+    wrap.className = 'custom-select-ui';
+    wrap.innerHTML = `
+      <button type="button" class="custom-select-trigger" aria-haspopup="listbox">
+        <span class="cs-trigger-left">
+          <span class="cs-dot"></span>
+          <span class="cs-label-text">-- Chọn --</span>
+        </span>
+        <span class="cs-arrow">
+          <svg viewBox="0 0 24 24" class="svg-ico" style="width:12px;height:12px"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </button>
+      <div class="custom-select-menu" role="listbox"></div>
+    `;
+    selectEl.parentNode?.insertBefore(wrap, selectEl.nextSibling);
+    selectEl._customSelectWrap = wrap;
+
+    const trigger = wrap.querySelector('.custom-select-trigger');
+    trigger.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (selectEl.disabled) return;
+      const isOpen = wrap.classList.contains('open');
+      document.querySelectorAll('.custom-select-ui.open').forEach(other => {
+        if (other !== wrap) other.classList.remove('open');
+      });
+      wrap.classList.toggle('open', !isOpen);
+    });
+  }
+
+  const labelEl = wrap.querySelector('.cs-label-text');
+  const menu = wrap.querySelector('.custom-select-menu');
+  const opts = Array.from(selectEl.options || []);
+  const selectedOpt = opts.find(o => o.value === selectEl.value) || opts[0];
+  if (labelEl) {
+    labelEl.textContent = selectedOpt ? selectedOpt.textContent : '-- Chọn --';
+  }
+  if (menu) {
+    menu.innerHTML = opts.map(o => {
+      const isSel = o.value === (selectedOpt ? selectedOpt.value : '');
+      return `
+        <button type="button" class="custom-select-option ${isSel ? 'selected' : ''}" data-cs-val="${esc(o.value)}">
+          <span>${esc(o.textContent)}</span>
+          <span>${isSel ? '✓' : ''}</span>
+        </button>
+      `;
+    }).join('');
+    menu.querySelectorAll('.custom-select-option').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        const newVal = btn.dataset.csVal;
+        if (selectEl.value !== newVal) {
+          selectEl.value = newVal;
+          selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        wrap.classList.remove('open');
+        syncCustomSelectUI(selectEl);
+      });
+    });
+  }
+}
+
+function refreshAllCustomSelects(root = document) {
+  root.querySelectorAll('select').forEach(sel => syncCustomSelectUI(sel));
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.custom-select-ui')) {
+    document.querySelectorAll('.custom-select-ui.open').forEach(w => w.classList.remove('open'));
+  }
+});
+
 const panelInfo = {
-  overview: ['Tổng quan', 'Theo dõi sản phẩm, ảnh mẫu, video mẫu, kho key và các yêu cầu khách hàng.'],
-  settings: ['Nội dung trang', 'Điều chỉnh văn bản, liên kết và các tiêu đề hiển thị trên trang chủ.'],
+  overview: ['Tổng quan', 'Theo dõi sản phẩm, ảnh/video mẫu tự nhận diện ngang dọc, kho key, đơn hàng và nạp tự động ACB ONE.'],
+  settings: ['Nội dung trang', 'Điều chỉnh văn bản, thông tin ngân hàng ACB ONE 28233851 và tiêu đề hiển thị trên trang chủ.'],
   categories: ['Danh mục', 'Thêm, sửa, ẩn hoặc xoá danh mục sản phẩm.'],
-  products: ['Sản phẩm & menu', 'Quản lý sản phẩm sẽ xuất hiện trong cửa hàng.'],
-  gallery: ['Ảnh mẫu (Thẻ vuốt ngang)', 'Tải lên một hoặc nhiều ảnh mẫu cùng lúc. Khi có nhiều ảnh sẽ hiển thị dạng thẻ cạnh nhau vuốt mượt mà.'],
-  videos: ['Video mẫu (Thẻ vuốt ngang)', 'Tải lên hoặc dán link nhiều video mẫu. Hiển thị dạng thẻ video cạnh nhau vuốt đổi video như ảnh mẫu.'],
+  products: ['Sản phẩm & menu', 'Quản lý sản phẩm và upload nhanh key trực tiếp cho từng sản phẩm.'],
+  gallery: ['Ảnh mẫu (Tự nhận diện ngang / dọc)', 'Tải lên một hoặc nhiều ảnh mẫu. Hệ thống tự nhận diện khung ảnh ngang hoặc dọc.'],
+  videos: ['Video mẫu (Chế độ chỉ xem + Hiện giây)', 'Tải lên hoặc dán link nhiều video mẫu. Trên web khách chỉ cho xem và hiện giây thực tế.'],
   reviews: ['Feedback / đánh giá', 'Thêm đánh giá và chọn những feedback được công khai.'],
   plans: ['Bảng giá key', 'Tự chỉnh giá cho các hạn 1/3/7/30/90 ngày và vĩnh viễn.'],
-  keys: ['Kho key', 'Nhập key theo sản phẩm và thời hạn.'],
-  freeOffers: ['Key miễn phí', 'Tạo chương trình link nhiệm vụ để khách gửi yêu cầu nhận key free.'],
+  keys: ['Kho key bán', 'Nhập key bán theo sản phẩm và thời hạn (dán trực tiếp hoặc tải file .txt/.csv).'],
+  notifications: ['Thông báo Web (Đầy đủ loại & Hiện liên tục)', 'Tạo và tuỳ chỉnh thông báo Popup, Góc màn hình lặp liên tục, Chữ chạy ngang và Banner đa sắc thái.'],
+  freeOffers: ['UpKey Free & Cấu hình Vượt Link Chống Bypass', 'Quản lý kho Key Free, cấu hình API digitalsmod.site, tuỳ chọn gói vượt (VD: 1 link = 1 ngày, 2 link = 3 ngày) và chống Bypass IP/Thiết bị 24h.'],
   faqs: ['FAQ / câu hỏi thường gặp', 'Cập nhật câu hỏi và câu trả lời hiển thị ở cuối trang khách.'],
-  orders: ['Đơn hàng & giao key', 'Xác nhận thanh toán, giao key từ kho hoặc từ chối yêu cầu.'],
-  rules: ['Rules Firebase tích hợp', 'Toàn bộ cấu hình Database & Storage Rules đã được tích hợp sẵn tại đây để chỉ cần dùng 2 file index.html và admin.html.']
+  orders: ['Đơn hàng, Nạp tiền ACB ONE & Tài khoản', 'Tích hợp xử lý đơn hàng, duyệt nạp tiền / Webhook ACB ONE 28233851, quản lý tài khoản và lịch sử giao dịch ngay trong cùng một tab.'],
+  rules: ['Rules Firebase & Cấu hình Webhook bank.js', 'Cấu hình Database Rules, Storage Rules và hướng dẫn kết nối Webhook ngân hàng ACB ONE qua bank.js.']
 };
 
 function renderPanel(name) {
@@ -1449,12 +2327,14 @@ function renderPanel(name) {
     faqs: () => renderCollection('faqs'),
     plans: renderPlansPanel,
     keys: renderKeysPanel,
-    freeOffers: () => renderCollection('freeOffers'),
+    notifications: renderNotificationsPanel,
+    freeOffers: renderFreeKeyManagerPanel,
     orders: renderOrdersPanel,
     rules: renderRulesPanel
   };
   $('panelContent').innerHTML = (f[name] || renderOverview)();
   bindPanelEvents(name);
+  refreshAllCustomSelects($('panelContent'));
   observeScrollElements();
 }
 
@@ -1462,6 +2342,7 @@ function enableDragScroll(track) {
   if (!track) return;
   let isDown = false, startX = 0, scrollLeft = 0;
   track.addEventListener('mousedown', e => {
+    if (e.target.closest('video, button')) return;
     isDown = true;
     track.classList.add('dragging');
     startX = e.pageX - track.offsetLeft;
@@ -1488,21 +2369,59 @@ function bindPanelEvents(name) {
     $('settingsForm')?.addEventListener('submit', saveSettings);
     $('seedDefaults')?.addEventListener('click', seedDefaults);
   }
-  if (['categories','products','gallery','videos','reviews','freeOffers','faqs'].includes(name)) {
+  if (['categories','products','gallery','videos','reviews','faqs','notifications'].includes(name)) {
     $('addItem')?.addEventListener('click', () => openEditor(name));
+    $('seedSampleNotifsBtn')?.addEventListener('click', seedSampleNotifications);
     document.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => openEditor(name, b.dataset.edit)));
     document.querySelectorAll('[data-delete]').forEach(b => b.addEventListener('click', () => deleteItem(name, b.dataset.delete)));
     enableDragScroll($('adminDeckTrack'));
+    attachAdminMediaOrientation($('panelContent'));
+  }
+  if (name === 'freeOffers') {
+    $('freeConfigForm')?.addEventListener('submit', saveFreeConfig);
+    $('addFreeTierBtn')?.addEventListener('click', () => openEditor('freeTiers'));
+    $('seedFreeTiersBtn')?.addEventListener('click', seedDefaultFreeTiers);
+    document.querySelectorAll('[data-edit-tier]').forEach(b => b.addEventListener('click', () => openEditor('freeTiers', b.dataset.editTier)));
+    document.querySelectorAll('[data-delete-tier]').forEach(b => b.addEventListener('click', () => deleteItem('freeTiers', b.dataset.deleteTier)));
+    $('uploadFreeKeysForm')?.addEventListener('submit', handleUploadFreeKeys);
+    $('freeKeyFileUpload')?.addEventListener('change', handleFreeKeyFileRead);
+    $('freeVaultFilterTier')?.addEventListener('change', e => {
+      preselectedFreeTier = e.target.value;
+      renderPanel('freeOffers');
+    });
+    document.querySelectorAll('[data-remove-free-key]').forEach(b => b.addEventListener('click', () => removeFreeKey(b.dataset.tier, b.dataset.removeFreeKey)));
+    document.querySelectorAll('[data-unlock-ip]').forEach(b => b.addEventListener('click', () => unlockIpClaim(b.dataset.unlockIp)));
+    $('clearAllIpLocksBtn')?.addEventListener('click', clearAllIpLocks);
   }
   if (name === 'plans') {
     $('savePlans')?.addEventListener('click', savePlans);
     $('seedPlans')?.addEventListener('click', seedPlans);
   }
+  if (name === 'products') {
+    document.querySelectorAll('[data-upload-key]').forEach(b => b.addEventListener('click', () => {
+      preselectedKeyProduct = b.dataset.uploadKey;
+      renderPanel('keys');
+      toast('Đã chọn sản phẩm để upload key.');
+    }));
+  }
   if (name === 'keys') {
     $('addKeysForm')?.addEventListener('submit', addKeys);
-    $('keyFilterProduct')?.addEventListener('change', () => renderPanel('keys'));
+    $('keyFileUpload')?.addEventListener('change', handleKeyFileUpload);
+    $('keyFilterProduct')?.addEventListener('change', e => {
+      preselectedKeyProduct = e.target.value;
+      renderPanel('keys');
+    });
     $('keyFilterPlan')?.addEventListener('change', () => renderPanel('keys'));
     document.querySelectorAll('[data-remove-key]').forEach(b => b.addEventListener('click', () => removeKey(b.dataset.removeKey, b.dataset.product, b.dataset.plan)));
+  }
+  if (name === 'orders') {
+    document.querySelectorAll('[data-admin-orders-subtab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeOrdersSubtab = btn.dataset.adminOrdersSubtab;
+        renderPanel('orders');
+      });
+    });
+    $('simulateWebhookForm')?.addEventListener('submit', handleSimulateWebhook);
   }
   if (name === 'rules') {
     $('copyDbRulesBtn')?.addEventListener('click', () => copyText($('dbRulesCode').textContent, 'Đã sao chép Realtime Database Rules!'));
@@ -1513,26 +2432,27 @@ function bindPanelEvents(name) {
 function renderOverview() {
   const all = flattenOrders();
   const pending = all.filter(o => o.status === 'pending').length;
+  const allDeps = flattenDeposits();
+  const pendingDeps = allDeps.filter(d => d.status === 'pending').length;
   const pCount = entries(store.products).length;
-  const gCount = entries(store.gallery).length;
-  const vCount = entries(store.videos).length;
+  const uCount = entries(usersMap).length;
   const keys = stockCount('available');
   return `
     <div class="stats-grid">
       <div class="metric glass">
-        <div class="label">SẢN PHẨM</div>
+        <div class="label">SẢN PHẨM &amp; MENU</div>
         <div class="value">${pCount}</div>
-        <small>Danh mục &amp; menu đang bán</small>
-      </div>
-      <div class="metric glass">
-        <div class="label">ẢNH &amp; VIDEO MẪU</div>
-        <div class="value">${gCount + vCount}</div>
-        <small>${gCount} bộ ảnh · ${vCount} bộ video</small>
+        <small>Đang hiển thị trên cửa hàng</small>
       </div>
       <div class="metric glass">
         <div class="label">KEY CÒN KHO</div>
         <div class="value">${keys}</div>
-        <small>Key sẵn sàng giao ngay</small>
+        <small>Key sẵn sàng xuất tự động</small>
+      </div>
+      <div class="metric glass">
+        <div class="label">THÀNH VIÊN</div>
+        <div class="value">${uCount}</div>
+        <small>${pendingDeps} lệnh nạp chờ duyệt</small>
       </div>
       <div class="metric glass">
         <div class="label">ĐƠN CHỜ XỬ LÝ</div>
@@ -1541,69 +2461,62 @@ function renderOverview() {
       </div>
     </div>
     <div class="notice">
-      <b>Hệ thống 2 file tích hợp:</b> Bạn đang đăng nhập bằng mật khẩu cố định <code>chanbomaydi</code>. Quản lý toàn bộ danh mục, sản phẩm, ảnh mẫu, video mẫu, kho key và đơn hàng tại đây.
+      <b>Tích hợp ACB ONE Webhook (bank.js):</b> Ngân hàng <b>ACB ONE</b> · STK <b>28233851</b> · Chủ TK <b>NGUYEN DAI QUOC DAT</b>. Nội dung chuyển khoản của khách được lấy tự động theo <b>tên tài khoản đã tạo</b> để cộng tiền trực tiếp qua Firebase.
     </div>
     <div class="panel glass">
       <div class="panel-head">
         <div>
           <h2>Đơn hàng mới nhất</h2>
-          <p>Kiểm tra yêu cầu mới, sau đó xác nhận hoặc giao key từ kho.</p>
+          <p>Kiểm tra yêu cầu mới, xác nhận hoặc giao key từ kho.</p>
         </div>
-        <button class="btn secondary small" data-goto="orders">Mở toàn bộ đơn ↗</button>
+        <div class="action-row">
+          <button class="btn secondary small" data-goto-subtab="depositsList">Nạp tiền &amp; Webhook (${pendingDeps})</button>
+          <button class="btn secondary small" data-goto-subtab="usersList">Quản lý tài khoản (${uCount})</button>
+          <button class="btn primary small" data-goto="orders">Mở khu vực Đơn hàng &amp; Ví</button>
+        </div>
       </div>
       ${orderTable(all.slice(0, 6), true)}
-    </div>
-    <div class="panel glass">
-      <div class="panel-head">
-        <div>
-          <h2>Thiết lập nhanh</h2>
-          <p>Quản lý nhanh toàn bộ dữ liệu hiển thị trên cửa hàng.</p>
-        </div>
-      </div>
-      <div class="action-row">
-        <button class="btn primary" data-goto="settings">Sửa nội dung trang</button>
-        <button class="btn secondary" data-goto="products">Thêm sản phẩm</button>
-        <button class="btn secondary" data-goto="gallery">Tải nhiều ảnh mẫu</button>
-        <button class="btn secondary" data-goto="videos">Tải nhiều video mẫu</button>
-        <button class="btn secondary" data-goto="keys">Nhập kho key</button>
-        <button class="btn secondary" data-goto="rules">Xem Firebase Rules</button>
-      </div>
     </div>
   `;
 }
 
 function renderSettingsPanel() {
   const s = currentSettings();
-  const inputs = settingFields.map(([k, label, type]) =>
-    type === 'imageurl'
+  const defaultsMap = {
+    bankName: BANK_CONFIG.bankFullName,
+    bankAccount: BANK_CONFIG.accountNumber,
+    bankOwner: BANK_CONFIG.accountOwner
+  };
+  const inputs = settingFields.map(([k, label, type]) => {
+    const val = s[k] ?? defaultsMap[k] ?? '';
+    return type === 'imageurl'
       ? `<div class="field full">
           <label for="setting_${esc(k)}">${esc(label)}</label>
-          <input id="setting_${esc(k)}" name="${esc(k)}" type="url" value="${esc(s[k] ?? '')}" placeholder="https://...">
+          <input id="setting_${esc(k)}" name="${esc(k)}" type="url" value="${esc(val)}" placeholder="Để trống để hệ thống tự tạo VietQR ACB ONE 28233851">
           <input data-setting-image="${esc(k)}" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" style="margin-top:8px;width:100%;font-size:10px;color:#aab5cc">
-          <small class="muted" style="font-size:9px;line-height:1.7">Chọn ảnh QR để tải lên Storage (tối đa 5 MB) hoặc dán URL.</small>
         </div>`
       : `<div class="field ${type === 'textarea' ? 'full' : ''}">
           <label for="setting_${esc(k)}">${esc(label)}</label>
           ${type === 'textarea'
-            ? `<textarea id="setting_${esc(k)}" name="${esc(k)}">${esc(s[k] ?? '')}</textarea>`
-            : `<input id="setting_${esc(k)}" name="${esc(k)}" type="${type === 'url' ? 'url' : 'text'}" value="${esc(s[k] ?? '')}" ${k === 'siteTitle' ? 'required' : ''}>`
+            ? `<textarea id="setting_${esc(k)}" name="${esc(k)}">${esc(val)}</textarea>`
+            : `<input id="setting_${esc(k)}" name="${esc(k)}" type="${type === 'url' ? 'url' : 'text'}" value="${esc(val)}" ${k === 'siteTitle' ? 'required' : ''}>`
           }
-        </div>`
-  ).join('');
+        </div>`;
+  }).join('');
 
   return `
     <div class="panel glass">
       <div class="panel-head">
         <div>
-          <h2>Toàn bộ nội dung trang chủ</h2>
-          <p>Chỉnh sửa văn bản hiển thị, tiêu đề mục Ảnh mẫu, Video mẫu, menu điều hướng, liên kết hỗ trợ và chân trang.</p>
+          <h2>Toàn bộ nội dung trang chủ &amp; Thông tin ACB ONE</h2>
+          <p>Mặc định cấu hình tài khoản ngân hàng: <b>ACB ONE · 28233851 · NGUYEN DAI QUOC DAT</b>.</p>
         </div>
         <button type="button" class="btn secondary small" id="seedDefaults">Khởi tạo nội dung mặc định</button>
       </div>
       <form id="settingsForm">
         <div class="form-grid">${inputs}</div>
         <div class="settings-save">
-          <button class="btn primary" type="submit">Lưu tất cả nội dung ↗</button>
+          <button class="btn primary" type="submit">Lưu tất cả nội dung</button>
         </div>
       </form>
     </div>
@@ -1621,6 +2534,10 @@ async function saveSettings(e) {
     for (const [k] of settingFields) {
       data[k] = form.elements[k]?.value?.trim() ?? '';
     }
+    if (!data.bankName) data.bankName = BANK_CONFIG.bankFullName;
+    if (!data.bankAccount) data.bankAccount = BANK_CONFIG.accountNumber;
+    if (!data.bankOwner) data.bankOwner = BANK_CONFIG.accountOwner;
+
     const file = form.querySelector('input[type="file"][data-setting-image]')?.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) throw new Error('Chỉ được tải tệp ảnh.');
@@ -1638,12 +2555,12 @@ async function saveSettings(e) {
     toast('Lưu thất bại: ' + err.message);
   } finally {
     button.disabled = false;
-    button.textContent = 'Lưu tất cả nội dung ↗';
+    button.textContent = 'Lưu tất cả nội dung';
   }
 }
 
 async function seedDefaults() {
-  const ok = await askConfirm('Khởi tạo nội dung mặc định và bảng giá nếu chưa có? Dữ liệu đang tồn tại sẽ không bị ghi đè.');
+  const ok = await askConfirm('Khởi tạo nội dung mặc định (bao gồm ACB ONE 28233851 - NGUYEN DAI QUOC DAT) và bảng giá?');
   if (!ok) return;
   const defaults = {
     siteTitle: 'KEYNOVA',
@@ -1652,9 +2569,9 @@ async function seedDefaults() {
     heroTitle: 'Nâng cấp trải nghiệm.',
     heroHighlight: 'Key xịn, giá gọn.',
     heroDescription: 'Kho key menu số được chọn lọc, bảng giá rõ ràng và quy trình nhận key minh bạch. Nội dung được cập nhật trực tiếp từ hệ thống quản trị.',
-    heroPrimary: 'Xem sản phẩm ↗',
+    heroPrimary: 'Xem sản phẩm',
     heroSecondary: 'Nhận key miễn phí',
-    announcement: 'Chào mừng bạn đến với KEYNOVA. Đăng ký tài khoản để quản lý đơn hàng và nhận key nhanh chóng.',
+    announcement: 'Chào mừng bạn đến với KEYNOVA. Tạo tài khoản để nạp tự động qua ACB ONE và nhận key 24/7.',
     categoriesTitle: 'Danh mục nổi bật',
     categoriesDescription: 'Đi thẳng đến đúng loại sản phẩm bạn đang cần.',
     categoryBannerTitle: 'Một kho key, nhiều lựa chọn.',
@@ -1662,9 +2579,9 @@ async function seedDefaults() {
     productsTitle: 'Sản phẩm & menu',
     productsDescription: 'Chọn sản phẩm rồi chọn thời hạn key phù hợp.',
     galleryTitle: 'Ảnh mẫu sản phẩm',
-    galleryDescription: 'Vuốt ngang hoặc kéo thẻ để xem bộ ảnh mẫu thực tế.',
+    galleryDescription: 'Tự động nhận diện khung ảnh ngang hoặc dọc — vuốt ngang để xem.',
     videosTitle: 'Video mẫu thực tế',
-    videosDescription: 'Vuốt ngang qua các thẻ video để xem trình diễn tính năng trực tiếp.',
+    videosDescription: 'Tự động nhận diện video ngang hoặc dọc — hỗ trợ tua nhanh trực tiếp.',
     plansTitle: 'Bảng giá key',
     plansDescription: 'Thời hạn và giá được quản trị viên điều chỉnh trực tiếp trên hệ thống.',
     freeTitle: 'Săn key miễn phí',
@@ -1672,14 +2589,17 @@ async function seedDefaults() {
     reviewsTitle: 'Feedback từ khách hàng',
     reviewsDescription: 'Đánh giá và phản hồi được quản trị viên chọn hiển thị.',
     faqTitle: 'Mua key như thế nào?',
-    faqDescription: 'Chọn sản phẩm, gửi yêu cầu và chờ shop xử lý.',
+    faqDescription: 'Chọn sản phẩm, thanh toán bằng số dư ví hoặc chuyển khoản ACB ONE.',
     contactTitle: 'Cần hỗ trợ chọn key?',
     contactDescription: 'Liên hệ shop để hỏi về sản phẩm, thời hạn và quy trình kích hoạt.',
-    contactButtonText: 'Liên hệ hỗ trợ ↗',
-    paymentInstructions: 'Sau khi gửi đơn, admin sẽ hướng dẫn thanh toán qua thông tin liên hệ bạn cung cấp.',
+    contactButtonText: 'Liên hệ hỗ trợ',
+    bankName: BANK_CONFIG.bankFullName,
+    bankAccount: BANK_CONFIG.accountNumber,
+    bankOwner: BANK_CONFIG.accountOwner,
+    paymentInstructions: 'Chuyển khoản đến STK 28233851 (ACB ONE - NGUYEN DAI QUOC DAT) với nội dung là đúng tên tài khoản đã tạo.',
     paymentQrUrl: '',
-    myOrdersTitle: 'Đơn hàng của tôi',
-    myOrdersDescription: 'Các đơn thuộc tài khoản của bạn sẽ xuất hiện tại đây. Khi admin giao key, bạn có thể xem và sao chép key.',
+    myOrdersTitle: 'Đơn hàng của tôi & Ví tài khoản',
+    myOrdersDescription: 'Theo dõi đơn hàng, nhận key tự động và nạp số dư ACB ONE ngay trong cùng một khu vực.',
     statProductsLabel: 'SẢN PHẨM',
     statCategoriesLabel: 'DANH MỤC',
     statRequestsValue: '24/7',
@@ -1697,20 +2617,10 @@ async function seedDefaults() {
     copyrightText: `© ${new Date().getFullYear()} KEYNOVA. All rights reserved.`
   };
   try {
-    const current = (await get(ref(db, 'store/settings'))).val();
-    if (!current) await set(ref(db, 'store/settings'), defaults);
+    await set(ref(db, 'store/settings'), {...defaults, ...(store.settings || {}), bankName: BANK_CONFIG.bankFullName, bankAccount: BANK_CONFIG.accountNumber, bankOwner: BANK_CONFIG.accountOwner});
     const curPlans = (await get(ref(db, 'store/keyPlans'))).val();
     if (!curPlans) await set(ref(db, 'store/keyPlans'), Object.fromEntries(presets.map(p => [p.id, p])));
-    const curFaqs = (await get(ref(db, 'store/faqs'))).val();
-    if (!curFaqs) {
-      await set(ref(db, 'store/faqs'), {
-        'faq-1': {question:'Chọn sản phẩm và thời hạn như thế nào?',answer:'Chọn menu bạn cần, sau đó chọn gói 1, 3, 7, 30, 90 ngày hoặc vĩnh viễn.',active:true,sortOrder:1},
-        'faq-2': {question:'Sau khi đặt đơn, bao lâu nhận được key?',answer:'Đơn sẽ được admin kiểm tra. Sau khi giao, key xuất hiện trong khu vực Đơn hàng của tôi.',active:true,sortOrder:2},
-        'faq-3': {question:'Làm sao tạo tài khoản người dùng?',answer:'Bấm vào nút Tài khoản trên thanh menu, điền thông tin và hoàn thành xác minh Cloudflare Captcha để đăng ký.',active:true,sortOrder:3},
-        'faq-4': {question:'Tôi không thấy key ở đơn hàng?',answer:'Hãy đăng nhập đúng tài khoản đã tạo đơn hoặc liên hệ shop bằng mã đơn hàng.',active:true,sortOrder:4}
-      });
-    }
-    toast('Đã tạo dữ liệu cấu hình mặc định còn thiếu.');
+    toast('Đã khởi tạo nội dung mặc định và thông tin ngân hàng ACB ONE.');
   } catch (err) {
     toast('Không thể khởi tạo: ' + err.message);
   }
@@ -1761,8 +2671,8 @@ function renderCollection(coll) {
         <div class="panel glass">
           <div class="panel-head">
             <div>
-              <h2>Xem trước thẻ vuốt ngang (${cards.length} thẻ)</h2>
-              <p>Kéo ngang hoặc vuốt trên điện thoại để kiểm tra hiệu ứng thẻ cạnh nhau trước khi xem ngoài cửa hàng.</p>
+              <h2>Xem trước thẻ vuốt ngang (${cards.length} thẻ · Tự động nhận diện ngang / dọc)</h2>
+              <p>Hệ thống tự động đo kích thước thật của từng ảnh / video để chia bố cục khung ngang hoặc khung dọc chuẩn xác.</p>
             </div>
           </div>
           <div class="admin-deck-wrap">
@@ -1777,7 +2687,7 @@ function renderCollection(coll) {
                   </div>
                   <div class="admin-deck-meta">
                     <strong>${esc(c.title)}</strong>
-                    <span class="pill pill-blue">${c.type === 'video' ? 'VIDEO' : 'ẢNH'}</span>
+                    <span class="pill pill-blue" data-deck-orient>${c.type === 'video' ? 'VIDEO' : 'ẢNH'}</span>
                   </div>
                 </div>
               `).join('')}
@@ -1807,7 +2717,7 @@ function renderCollection(coll) {
           ${mediaCountBadge}
           ${esc(
             coll === 'products' ? (store.categories?.[x.categoryId]?.name || 'Chưa phân loại') :
-            coll === 'reviews' ? (x.rating || 5) + ' ★' :
+            coll === 'reviews' ? (x.rating || 5) + ' sao' :
             coll === 'freeOffers' ? (store.products?.[x.productId]?.name || 'Chưa chọn sản phẩm') :
             (x.categoryId ? store.categories?.[x.categoryId]?.name || '—' : '—')
           )}
@@ -1815,6 +2725,7 @@ function renderCollection(coll) {
         <td>${x.active === false ? '<span class="pill pill-red">Đã ẩn</span>' : '<span class="pill pill-green">Đang hiển thị</span>'}</td>
         <td>
           <div class="action-row">
+            ${coll === 'products' ? `<button type="button" class="btn primary small" data-upload-key="${esc(x.id)}">Upload Key (${stockCount('available', x.id)})</button>` : ''}
             <button type="button" class="btn secondary small" data-edit="${esc(x.id)}">Sửa</button>
             <button type="button" class="btn danger small" data-delete="${esc(x.id)}">Xoá</button>
           </div>
@@ -1823,25 +2734,15 @@ function renderCollection(coll) {
     `;
   }).join('') : '<tr><td colspan="4"><div class="empty">Chưa có dữ liệu. Bấm “Thêm mới” để tạo mục đầu tiên.</div></td></tr>';
 
-  const description = {
-    categories: 'Danh mục, mô tả và ảnh bìa hiển thị ở đầu trang.',
-    products: 'Tên sản phẩm, ảnh bìa, mô tả và danh mục liên kết.',
-    gallery: 'Có thể tải lên nhiều ảnh cùng lúc hoặc dán nhiều URL ảnh (mỗi dòng 1 link). Các ảnh sẽ xếp thành thẻ cạnh nhau để khách vuốt ngang.',
-    videos: 'Có thể tải lên nhiều tệp video (MP4/WebM) hoặc dán nhiều link video/YouTube. Các video sẽ hiển thị dạng thẻ cạnh nhau vuốt ngang.',
-    reviews: 'Chỉ hiển thị feedback bạn nhập và bật trạng thái hiển thị.',
-    freeOffers: 'Mỗi chương trình liên kết với một sản phẩm, một hạn key và một link nhiệm vụ.',
-    faqs: 'Câu hỏi và câu trả lời hiển thị trong phần FAQ của trang khách.'
-  }[coll];
-
   return `
     ${deckPreviewHtml}
     <div class="panel glass">
       <div class="panel-head">
         <div>
           <h2>Danh sách ${schema.title.toLowerCase()}</h2>
-          <p>${description}</p>
+          <p>Quản lý toàn bộ dữ liệu hiển thị trực tiếp ngoài trang khách.</p>
         </div>
-        <button type="button" class="btn primary" id="addItem">＋ Thêm ${schema.title.toLowerCase()}</button>
+        <button type="button" class="btn primary" id="addItem">Thêm ${schema.title.toLowerCase()}</button>
       </div>
       <div class="table-wrap">
         <table>
@@ -1873,7 +2774,7 @@ function fieldControl(k, label, type, required, value, fullObj = {}) {
         <label for="${id}">${esc(label)}</label>
         <textarea id="${id}" name="${k}" placeholder="https://example.com/anh-1.jpg&#10;https://example.com/anh-2.jpg">${esc(joined)}</textarea>
         <input data-multi-image="${esc(k)}" type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif,image/avif" style="margin-top:8px;width:100%;font-size:10px;color:#aab5cc">
-        <small class="muted" style="font-size:9px;line-height:1.7">Có thể chọn NHIỀU ảnh cùng lúc từ máy/điện thoại (tối đa 8 MB/ảnh) hoặc dán nhiều URL ảnh (mỗi dòng 1 ảnh). Khi có nhiều ảnh, trang chủ sẽ tạo các thẻ cạnh nhau để vuốt qua lại.</small>
+        <small class="muted" style="font-size:9px;line-height:1.7">Chọn nhiều ảnh hoặc dán nhiều URL (mỗi dòng 1 ảnh). Hệ thống tự động nhận diện ảnh ngang hoặc dọc.</small>
       </div>
     `;
   }
@@ -1886,21 +2787,43 @@ function fieldControl(k, label, type, required, value, fullObj = {}) {
         <label for="${id}">${esc(label)}</label>
         <textarea id="${id}" name="${k}" placeholder="https://example.com/video-1.mp4&#10;https://www.youtube.com/watch?v=...">${esc(joined)}</textarea>
         <input data-multi-video="${esc(k)}" type="file" multiple accept="video/mp4,video/webm,video/ogg,video/quicktime" style="margin-top:8px;width:100%;font-size:10px;color:#aab5cc">
-        <small class="muted" style="font-size:9px;line-height:1.7">Có thể chọn NHIỀU tệp video (MP4/WebM/MOV) để tải lên Firebase Storage hoặc dán nhiều link video/YouTube (mỗi dòng 1 link). Các video sẽ xếp thành thẻ cạnh nhau vuốt ngang.</small>
+        <small class="muted" style="font-size:9px;line-height:1.7">Chọn nhiều tệp video (MP4/WebM/MOV) hoặc dán nhiều link video. Hệ thống tự động nhận diện video ngang / dọc.</small>
       </div>
     `;
   }
-  if (type === 'selectCategories' || type === 'selectProducts' || type === 'selectPlans') {
+  if (['selectCategories','selectProducts','selectPlans','selectNotifType','selectNotifStyle','selectNotifFreq'].includes(type)) {
     let options = [];
     if (type === 'selectCategories') options = entries(store.categories).map(x => [x.id, x.name || x.id]);
     if (type === 'selectProducts') options = entries(store.products).map(x => [x.id, x.name || x.id]);
     if (type === 'selectPlans') options = entries(store.keyPlans).map(x => [x.id, x.label || x.name || x.id]);
+    if (type === 'selectNotifType') options = [
+      ['info', 'Thông tin chung (Cyan)'],
+      ['promo', 'Khuyến mãi / Sự kiện (Violet)'],
+      ['success', 'Cập nhật mới / Thành công (Green)'],
+      ['warning', 'Cảnh báo / Bảo trì (Amber)'],
+      ['danger', 'Khẩn cấp / Quan trọng (Red)']
+    ];
+    if (type === 'selectNotifStyle') options = [
+      ['all', 'Tất cả vị trí (Popup + Góc lặp + Banner + Chữ chạy)'],
+      ['popup', 'Bảng Popup nổi giữa màn hình'],
+      ['toast_loop', 'Thông báo góc màn hình chạy lặp liên tục'],
+      ['marquee', 'Thanh chữ chạy ngang liên tục đầu trang'],
+      ['banner', 'Khối Banner cố định đầu trang']
+    ];
+    if (type === 'selectNotifFreq') options = [
+      ['continuous', 'Hiện liên tục (Tự động lặp lại theo chu kỳ giây)'],
+      ['every_load', 'Hiện mỗi lần người dùng tải trang'],
+      ['once_24h', 'Hiện 1 lần trong 24 giờ']
+    ];
+    const effectiveVal = (val !== undefined && val !== null && String(val) !== '')
+      ? String(val)
+      : (required && options.length ? String(options[0][0]) : '');
     return `
       <div class="field">
         <label for="${id}">${esc(label)}</label>
-        <select id="${id}" name="${k}" ${required ? 'required' : ''}>
+        <select id="${id}" name="${k}" ${required && options.length ? 'required' : ''}>
           <option value="">-- Chọn --</option>
-          ${options.map(([v, l]) => `<option value="${esc(v)}" ${String(val || '') === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}
+          ${options.map(([v, l]) => `<option value="${esc(v)}" ${effectiveVal === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}
         </select>
       </div>
     `;
@@ -1911,7 +2834,6 @@ function fieldControl(k, label, type, required, value, fullObj = {}) {
         <label for="${id}">${esc(label)}</label>
         <input id="${id}" name="${k}" type="url" value="${esc(val ?? '')}" placeholder="https://... (hoặc tải ảnh bên dưới)">
         <input data-image-key="${esc(k)}" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" style="margin-top:8px;width:100%;font-size:10px;color:#aab5cc">
-        <small class="muted" style="font-size:9px;line-height:1.7">Chọn ảnh để tải lên Firebase Storage (tối đa 5 MB), hoặc dán URL ảnh công khai.</small>
       </div>
     `;
   }
@@ -1930,12 +2852,45 @@ function openEditor(coll, id = '') {
   const obj = id ? store[coll]?.[id] || {} : {};
   $('editorTitle').textContent = (id ? 'Sửa ' : 'Thêm ') + schema.title.toLowerCase();
   $('editorHelp').textContent = 'Mục này được lưu trực tiếp ở store/' + coll + ' trong Firebase.';
-  $('editorFields').innerHTML = schema.fields.map(([k, label, type, required]) => fieldControl(k, label, type, required, obj[k], obj)).join('');
+  let extraHtml = '';
+  if (coll === 'products') {
+    const pls = entries(store.keyPlans);
+    extraHtml = `
+      <div class="field full" style="margin-top:10px;padding:14px;border-radius:13px;background:rgba(112,240,237,.05);border:1px solid rgba(112,240,237,.22)">
+        <label style="color:var(--cyan)">UPLOAD NHANH KEY CHO SẢN PHẨM NÀY (TUỲ CHỌN)</label>
+        <div class="stock-controls" style="margin-top:6px">
+          <div class="field" style="margin:0">
+            <label>CHỌN GÓI HẠN KEY</label>
+            <select name="_quickKeyPlanId">
+              ${pls.length ? pls.map(p => `<option value="${esc(p.id)}">${esc(p.label || p.name || p.id)}</option>`).join('') : '<option value="1d">1 ngày</option><option value="7d">7 ngày</option><option value="30d">30 ngày</option><option value="lifetime">Vĩnh viễn</option>'}
+            </select>
+          </div>
+          <div class="field" style="margin:0">
+            <label>HOẶC CHỌN FILE KEY (.TXT / .CSV)</label>
+            <input type="file" id="editorKeyFileInput" accept=".txt,.csv" style="padding:9px;font-size:10px">
+          </div>
+        </div>
+        <textarea name="_quickKeyValues" id="editorKeyTextarea" placeholder="Dán danh sách key vào đây (mỗi dòng 1 key) hoặc chọn file .txt bên trên…" style="margin-top:8px;min-height:85px"></textarea>
+      </div>
+    `;
+  }
+  $('editorFields').innerHTML = schema.fields.map(([k, label, type, required]) => fieldControl(k, label, type, required, obj[k], obj)).join('') + extraHtml;
+  $('editorKeyFileInput')?.addEventListener('change', async e => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const txt = await f.text();
+    const ta = $('editorKeyTextarea');
+    if (ta) ta.value = (ta.value ? ta.value + '\n' : '') + txt.trim();
+    toast('Đã nạp nội dung file key vào ô nhập.');
+  });
   $('editorBg').classList.add('open');
+  refreshAllCustomSelects($('editorFields'));
+  syncModalOpenClass();
 }
 
 function closeEditor() {
   $('editorBg').classList.remove('open');
+  syncModalOpenClass();
 }
 $('editorClose').addEventListener('click', closeEditor);
 $('editorCancel').addEventListener('click', closeEditor);
@@ -1963,7 +2918,6 @@ $('editorForm').addEventListener('submit', async e => {
       obj[k] = val;
     }
 
-    // Single image upload (categories, products, reviews, freeOffers, video poster)
     const fileInput = form.querySelector('input[type="file"][data-image-key]');
     const singleFile = fileInput?.files?.[0];
     if (singleFile) {
@@ -1976,7 +2930,6 @@ $('editorForm').addEventListener('submit', async e => {
       obj[fileInput.dataset.imageKey] = await getDownloadURL(objectRef);
     }
 
-    // Multi-image upload for Gallery
     const multiImageInput = form.querySelector('input[type="file"][data-multi-image]');
     if (multiImageInput) {
       const textUrls = String(obj.imageUrl || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
@@ -1997,7 +2950,6 @@ $('editorForm').addEventListener('submit', async e => {
       obj.imageUrl = allImages[0];
     }
 
-    // Multi-video upload for Videos
     const multiVideoInput = form.querySelector('input[type="file"][data-multi-video]');
     if (multiVideoInput) {
       const textUrls = String(obj.videoUrl || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
@@ -2025,6 +2977,24 @@ $('editorForm').addEventListener('submit', async e => {
       editorId = push(ref(db, `store/${editorCollection}`)).key;
     }
     await set(ref(db, `store/${editorCollection}/${editorId}`), obj);
+    if (editorCollection === 'products') {
+      const qPlan = form.elements._quickKeyPlanId?.value || '1d';
+      const qRaw = form.elements._quickKeyValues?.value || '';
+      const qKeys = [...new Set(qRaw.split(/\r?\n/).map(s => s.trim()).filter(Boolean))];
+      if (qKeys.length) {
+        const kUpdates = {};
+        for (const kv of qKeys) {
+          const kid = push(ref(db, `keyVault/${editorId}/${qPlan}`)).key;
+          kUpdates[`keyVault/${editorId}/${qPlan}/${kid}`] = {
+            value: kv,
+            status: 'available',
+            addedAt: Date.now(),
+            addedBy: currentUser?.uid || 'admin-fixed'
+          };
+        }
+        await update(ref(db), kUpdates);
+      }
+    }
     closeEditor();
     toast('Đã lưu ' + schema.title.toLowerCase() + ' thành công!');
   } catch (err) {
@@ -2070,7 +3040,7 @@ function renderPlansPanel() {
         `).join('')}
       </div>
       <div class="settings-save">
-        <button type="button" class="btn primary" id="savePlans">Lưu bảng giá ↗</button>
+        <button type="button" class="btn primary" id="savePlans">Lưu bảng giá</button>
       </div>
     </div>
   `;
@@ -2117,7 +3087,7 @@ function selectOptions(obj, selected) {
 function renderKeysPanel() {
   const ps = entries(store.products);
   const pls = entries(store.keyPlans);
-  const productVal = $('keyFilterProduct')?.value || ps[0]?.id || '';
+  const productVal = preselectedKeyProduct || $('keyFilterProduct')?.value || ps[0]?.id || '';
   const planVal = $('keyFilterPlan')?.value || pls[0]?.id || '';
   const byPlan = vault[productVal]?.[planVal] || {};
   const rows = entries(byPlan).sort((a, b) => (Number(b.addedAt) || 0) - (Number(a.addedAt) || 0));
@@ -2145,10 +3115,11 @@ function renderKeysPanel() {
           <div class="field"><label>THỜI HẠN KEY</label><select name="planId" id="keyPlan" required>${pls.map(p => `<option value="${esc(p.id)}" ${p.id === planVal ? 'selected' : ''}>${esc(p.label || p.name || p.id)}</option>`).join('')}</select></div>
         </div>
         <div class="field">
-          <label>KEY (MỖI DÒNG MỘT KEY)</label>
-          <textarea name="keyValues" required placeholder="KEY-ABCD-1234&#10;KEY-EFGH-5678&#10;KEY-IJKL-9012" style="min-height:130px"></textarea>
+          <label>UPLOAD FILE KEY (.TXT / .CSV) HOẶC DÁN TRỰC TIẾP (MỖI DÒNG 1 KEY)</label>
+          <input type="file" id="keyFileUpload" accept=".txt,.csv" style="margin-bottom:8px;font-size:11px">
+          <textarea name="keyValues" id="keyValuesTextarea" required placeholder="KEY-ABCD-1234&#10;KEY-EFGH-5678&#10;KEY-IJKL-9012" style="min-height:130px"></textarea>
         </div>
-        <button class="btn primary" type="submit">＋ Thêm key vào kho</button>
+        <button class="btn primary" type="submit">Upload &amp; Lưu key vào kho</button>
       </form>
     </div>
     <div class="panel glass">
@@ -2248,7 +3219,7 @@ function orderTable(all, compact = false) {
             <tr>
               <td>
                 <span class="item-main">${esc(o.customerName || 'Khách')}</span>
-                <span class="item-sub">Đơn: ${esc(o.id)}<br>Liên hệ: ${esc(o.contact || '—')}${o.userEmail ? `<br>TK: ${esc(o.userEmail)}` : ''}<br>${new Date(Number(o.createdAt) || Date.now()).toLocaleString('vi-VN')}</span>
+                <span class="item-sub">Đơn: ${esc(o.id)}<br>Liên hệ: ${esc(o.contact || '—')}${o.accountName ? `<br>Tên TK: ${esc(o.accountName)}` : ''}<br>${new Date(Number(o.createdAt) || Date.now()).toLocaleString('vi-VN')}</span>
               </td>
               <td>
                 <span class="item-main">${esc(o.productName || store.products?.[o.productId]?.name || 'Sản phẩm')}</span>
@@ -2274,24 +3245,726 @@ function orderTable(all, compact = false) {
   `;
 }
 
+/* Integrated Orders, ACB ONE Deposits/Webhook & User Accounts Panel */
+
+/* ============================================================================
+ * NOTIFICATIONS MANAGER PANEL (Multi-Type + Continuous Loop)
+ * ============================================================================ */
+function renderNotificationsPanel() {
+  const items = entries(store.notifications).sort((a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0));
+  const typeBadges = {
+    info: '<span class="pill pill-blue">Thông tin (Cyan)</span>',
+    promo: '<span class="pill pill-blue">Khuyến mãi (Violet)</span>',
+    success: '<span class="pill pill-green">Sự kiện / Mới (Green)</span>',
+    warning: '<span class="pill pill-amber">Cảnh báo / Bảo trì (Amber)</span>',
+    danger: '<span class="pill pill-red">Khẩn cấp (Red)</span>'
+  };
+  const styleLabels = {
+    all: 'Tất cả (Popup + Góc lặp + Banner + Chữ chạy)',
+    popup: 'Bảng Popup giữa màn hình',
+    toast_loop: 'Góc màn hình chạy lặp liên tục',
+    marquee: 'Thanh chữ chạy ngang đầu trang',
+    banner: 'Khối Banner cố định đầu trang'
+  };
+  const freqLabels = {
+    continuous: 'Hiện liên tục (Lặp lại theo chu kỳ)',
+    every_load: 'Hiện mỗi lần tải trang',
+    once_24h: 'Hiện 1 lần / 24h'
+  };
+
+  const rows = items.length ? items.map(n => `
+    <tr>
+      <td>
+        <span class="item-main">${esc(n.title || 'Thông báo')}</span>
+        <span class="item-sub">${esc(n.content || '')}</span>
+      </td>
+      <td>
+        ${typeBadges[n.type || 'info'] || typeBadges.info}
+        <span class="item-sub" style="margin-top:6px">${esc(styleLabels[n.displayStyle || 'all'] || n.displayStyle)}</span>
+      </td>
+      <td>
+        <span class="pill ${n.frequency === 'continuous' ? 'pill-green' : 'pill-amber'}">${esc(freqLabels[n.frequency || 'continuous'] || n.frequency)}</span>
+        <span class="item-sub">Chu kỳ lặp: ${Number(n.repeatSec) || 25} giây</span>
+      </td>
+      <td>${n.active === false ? '<span class="pill pill-red">Đã tắt</span>' : '<span class="pill pill-green">Đang bật</span>'}</td>
+      <td>
+        <div class="action-row">
+          <button type="button" class="btn secondary small" data-edit="${esc(n.id)}">Sửa</button>
+          <button type="button" class="btn danger small" data-delete="${esc(n.id)}">Xoá</button>
+        </div>
+      </td>
+    </tr>
+  `).join('') : '<tr><td colspan="5"><div class="empty">Chưa có thông báo nào. Bấm “Tạo bộ thông báo mẫu” hoặc “Thêm thông báo mới” để hiển thị ngoài trang chủ.</div></td></tr>';
+
+  return `
+    <div class="notice">
+      <b>Hệ thống Thông báo Web Đa Năng:</b> Hỗ trợ đầy đủ 5 sắc thái thông báo (Thông tin, Khuyến mãi, Sự kiện, Cảnh báo, Khẩn cấp) và 4 kiểu hiển thị (Popup nổi, Thông báo góc màn hình chạy lặp liên tục, Chữ chạy ngang Marquee, Banner ghim). Có thể bật <b>Hiện liên tục</b> theo số giây tuỳ chỉnh!
+    </div>
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>Danh sách thông báo đến Web (${items.length})</h2>
+          <p>Mọi thay đổi được đồng bộ thời gian thực sang trang khách ngay lập tức.</p>
+        </div>
+        <div class="action-row">
+          <button type="button" class="btn secondary" id="seedSampleNotifsBtn">Tạo nhanh bộ thông báo mẫu (Hiện liên tục)</button>
+          <button type="button" class="btn primary" id="addItem">Thêm thông báo mới</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Tiêu đề &amp; Nội dung</th><th>Loại &amp; Vị trí hiển thị</th><th>Chế độ lặp liên tục</th><th>Trạng thái</th><th>Thao tác</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+async function seedSampleNotifications() {
+  const samples = {
+    notif_welcome: {
+      title: 'Chào mừng đến với KEYNOVA Digital Store!',
+      content: 'Hệ thống cung cấp Key tự động 24/7. Hỗ trợ quét mã VietQR từng sản phẩm, gạch thẻ cào GachTheFast.com và vượt link nhận Key Free mỗi ngày.',
+      type: 'info',
+      displayStyle: 'all',
+      frequency: 'continuous',
+      repeatSec: 30,
+      buttonText: 'Khám phá sản phẩm',
+      buttonUrl: '#products',
+      sortOrder: 1,
+      active: true,
+      createdAt: Date.now()
+    },
+    notif_freekey: {
+      title: 'Sự kiện Săn Key Free (Vượt 1 Link = 1 Ngày · 2 Link = 3 Ngày)',
+      content: 'Đã mở kho Key Free tự động! Chọn vượt 1 link nhận ngay Key 1 Ngày hoặc vượt 2 link nhận Key 3 Ngày tại mục Key Free.',
+      type: 'promo',
+      displayStyle: 'toast_loop',
+      frequency: 'continuous',
+      repeatSec: 22,
+      buttonText: 'Lấy Key Free ngay',
+      buttonUrl: '#free',
+      sortOrder: 2,
+      active: true,
+      createdAt: Date.now()
+    }
+  };
+  try {
+    await update(ref(db, 'store/notifications'), samples);
+    toast('Đã tạo bộ thông báo mẫu hiện liên tục thành công!');
+  } catch (err) {
+    toast('Lỗi tạo thông báo mẫu: ' + err.message);
+  }
+}
+
+/* ============================================================================
+ * UPKEY FREE & ANTI-BYPASS SHORTLINK MANAGER PANEL
+ * Default API: https://digitalsmod.site/st?api=5fa5ea4b7fe0b99f43797c7e&url=
+ * ============================================================================ */
+const DEFAULT_FREE_TIERS_ADMIN = [
+  { id: 'tier_1d', title: 'Vượt 1 Link · Nhận Key 1 Ngày', linksRequired: 1, days: 1, planId: '1d', description: 'Hoàn thành 1 lần vượt link qua digitalsmod.site để nhận ngay Key 1 Ngày.', sortOrder: 1, active: true },
+  { id: 'tier_3d', title: 'Vượt 2 Link · Nhận Key 3 Ngày', linksRequired: 2, days: 3, planId: '3d', description: 'Hoàn thành 2 lần vượt link liên tiếp để nhận ngay Key 3 Ngày.', sortOrder: 2, active: true }
+];
+
+function getAdminFreeTiers() {
+  const list = entries(store.freeTiers).sort((a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0));
+  return list.length ? list : DEFAULT_FREE_TIERS_ADMIN;
+}
+
+function countFreeVaultStock(tierId = '') {
+  let n = 0;
+  for (const [tId, items] of Object.entries(freeKeyVault || {})) {
+    if (tierId && tId !== tierId) continue;
+    for (const it of Object.values(items || {})) {
+      if ((it?.status || 'available') === 'available') n++;
+    }
+  }
+  return n;
+}
+
+function renderFreeKeyManagerPanel() {
+  const cfg = store.freeConfig || {};
+  const apiBaseUrl = cfg.apiBaseUrl || 'https://digitalsmod.site/st?api=5fa5ea4b7fe0b99f43797c7e&url=';
+  const minBypassSeconds = cfg.minBypassSeconds ?? 12;
+  const maxKeysPerIp24h = cfg.maxKeysPerIp24h ?? 1;
+  const maxKeysPerDevice24h = cfg.maxKeysPerDevice24h ?? 2;
+  const autoGenerateIfEmpty = cfg.autoGenerateIfEmpty !== false;
+
+  const tiers = getAdminFreeTiers();
+  const selectedTier = preselectedFreeTier || tiers[0]?.id || 'tier_1d';
+  const vaultItems = entries(freeKeyVault[selectedTier]).sort((a, b) => (Number(b.addedAt) || 0) - (Number(a.addedAt) || 0));
+  const ipLocks = entries(freeClaimsByIp).sort((a, b) => (Number(b.claimedAt) || 0) - (Number(a.claimedAt) || 0));
+
+  const tierRows = tiers.map(t => `
+    <tr>
+      <td>
+        <span class="item-main">${esc(t.title || `Vượt ${t.linksRequired} link = Key ${t.days} ngày`)}</span>
+        <span class="item-sub">${esc(t.description || '')}</span>
+      </td>
+      <td><span class="pill pill-blue">Vượt ${Number(t.linksRequired) || 1} Link</span></td>
+      <td><span class="pill pill-green">Key ${Number(t.days) || 1} Ngày</span></td>
+      <td><strong>${countFreeVaultStock(t.id)} key sẵn có</strong></td>
+      <td>${t.active === false ? '<span class="pill pill-red">Đã ẩn</span>' : '<span class="pill pill-green">Đang bật</span>'}</td>
+      <td>
+        <div class="action-row">
+          <button type="button" class="btn secondary small" data-edit-tier="${esc(t.id)}">Sửa gói</button>
+          <button type="button" class="btn danger small" data-delete-tier="${esc(t.id)}">Xoá</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  const vaultRows = vaultItems.length ? vaultItems.map(k => `
+    <tr>
+      <td>
+        <span class="item-main key-value allow-select">${esc(k.value || '')}</span>
+        <span class="item-sub">ID: ${esc(k.id)}</span>
+      </td>
+      <td>
+        ${(k.status || 'available') === 'available'
+          ? '<span class="pill pill-green">Chưa nhận (Sẵn sàng)</span>'
+          : `<span class="pill pill-blue">Đã nhận (IP: ${esc(k.claimedByIp || '—')})</span>`
+        }
+      </td>
+      <td>${new Date(Number(k.addedAt) || Date.now()).toLocaleString('vi-VN')}</td>
+      <td>
+        ${(k.status || 'available') === 'available'
+          ? `<button type="button" class="btn danger small" data-remove-free-key="${esc(k.id)}" data-tier="${esc(selectedTier)}">Xoá</button>`
+          : '—'
+        }
+      </td>
+    </tr>
+  `).join('') : '<tr><td colspan="4"><div class="empty">Chưa có key thủ công trong gói này (Nếu bật Tự động cấp key, hệ thống vẫn tự tạo key khi kho trống).</div></td></tr>';
+
+  const ipRows = ipLocks.length ? ipLocks.map(rec => `
+    <tr>
+      <td>
+        <span class="item-main allow-select">IP: ${esc(rec.ip || rec.id)}</span>
+        <span class="item-sub allow-select">Thiết bị: ${esc(rec.deviceId || '—')}</span>
+      </td>
+      <td>
+        <span class="item-main key-value allow-select" style="color:var(--cyan)">${esc(rec.key || '')}</span>
+        <span class="item-sub">${esc(rec.tierTitle || `Key ${rec.days || 1} Ngày`)} · Vượt ${esc(rec.linksCompleted || 1)} link</span>
+      </td>
+      <td>${new Date(Number(rec.claimedAt) || Date.now()).toLocaleString('vi-VN')}</td>
+      <td>
+        <button type="button" class="btn secondary small" data-unlock-ip="${esc(rec.id)}">Mở khoá IP này</button>
+      </td>
+    </tr>
+  `).join('') : '<tr><td colspan="4"><div class="empty">Chưa có IP nào đang bị khoá 24h.</div></td></tr>';
+
+  return `
+    <div class="notice">
+      <b>Hệ thống UpKey Free &amp; Chống Bypass Link Vượt:</b> Mặc định tích hợp API <code>https://digitalsmod.site/st?api=5fa5ea4b7fe0b99f43797c7e&amp;url=</code>. Tự động kiểm tra Token phiên + Thời gian vượt tối thiểu, hiển thị key 1 lần trong 24h, khoá IP đã nhận key không cho tạo key mới trong 24h và giới hạn 1 thiết bị lấy tối đa 2 key/ngày.
+    </div>
+
+    <!-- 1. API & Anti-Bypass Configuration -->
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>1. Cấu hình API Link Vượt &amp; Luật Chống Bypass (24h)</h2>
+          <p>Điều chỉnh link API vượt (digitalsmod.site), số giây tối thiểu chống tool bypass, giới hạn IP và thiết bị.</p>
+        </div>
+        <span class="pill pill-green">ANTI-BYPASS ACTIVE</span>
+      </div>
+      <form id="freeConfigForm">
+        <div class="form-grid">
+          <div class="field full">
+            <label>API LINK VƯỢT QUẢNG CÁO (TỰ ĐỘNG GẮN URL CALLBACK PHÍA SAU)</label>
+            <input name="apiBaseUrl" required value="${esc(apiBaseUrl)}" placeholder="https://digitalsmod.site/st?api=5fa5ea4b7fe0b99f43797c7e&url=">
+          </div>
+          <div class="field">
+            <label>THỜI GIAN VƯỢT TỐI THIỂU CHỐNG BYPASS (GIÂY / 1 LINK)</label>
+            <input name="minBypassSeconds" type="number" min="3" max="300" value="${Number(minBypassSeconds)}" required>
+          </div>
+          <div class="field">
+            <label>GIỚI HẠN MỖI IP TRONG 24H (MẶC ĐỊNH: 1 KEY / 24H — KHOÁ TẠO MỚI)</label>
+            <input name="maxKeysPerIp24h" type="number" min="1" max="20" value="${Number(maxKeysPerIp24h)}" required>
+          </div>
+          <div class="field">
+            <label>GIỚI HẠN 1 THIẾT BỊ TRONG 24H (MẶC ĐỊNH: 2 KEY / NGÀY)</label>
+            <input name="maxKeysPerDevice24h" type="number" min="1" max="20" value="${Number(maxKeysPerDevice24h)}" required>
+          </div>
+          <div class="field" style="display:flex;align-items:end">
+            <label class="check-field" style="margin:0">
+              <input type="checkbox" name="autoGenerateIfEmpty" ${autoGenerateIfEmpty ? 'checked' : ''}>
+              Tự động sinh mã Key Free nếu kho key thủ công của gói đang trống
+            </label>
+          </div>
+        </div>
+        <div style="margin-top:14px;display:flex;justify-content:flex-end">
+          <button type="submit" class="btn primary">Lưu cấu hình Vượt Link &amp; Chống Bypass</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 2. Configurable Free Key Tiers (1 Link = 1 Day, 2 Links = 3 Days, etc.) -->
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>2. Tuỳ chọn các Gói Vượt Link Nhận Key (Người dùng được chọn ngoài Web)</h2>
+          <p>Ví dụ: <b>Vượt 1 link = Key 1 ngày</b>, <b>Vượt 2 link = Key 3 ngày</b>. Bạn có thể thêm hoặc chỉnh sửa số link và số ngày tuỳ ý.</p>
+        </div>
+        <div class="action-row">
+          <button type="button" class="btn secondary small" id="seedFreeTiersBtn">Khởi tạo 2 gói chuẩn (1 Link = 1 Ngày · 2 Link = 3 Ngày)</button>
+          <button type="button" class="btn primary small" id="addFreeTierBtn">Thêm gói vượt link mới</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Tên gói hiển thị</th><th>Số link phải vượt</th><th>Thời hạn Key nhận</th><th>Kho Key Free</th><th>Trạng thái</th><th>Thao tác</th></tr>
+          </thead>
+          <tbody>${tierRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 3. UpKey Free Vault -->
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>3. UpKey Free vào Kho (Theo từng gói vượt link)</h2>
+          <p>Dán danh sách Key Free (mỗi dòng 1 key) hoặc tải file <code>.txt / .csv</code> để hệ thống tự động phát cho khách sau khi vượt đủ số link.</p>
+        </div>
+        <span class="pill pill-green">Tổng ${countFreeVaultStock()} key free sẵn sàng</span>
+      </div>
+      <form id="uploadFreeKeysForm">
+        <div class="stock-controls">
+          <div class="field">
+            <label>CHỌN GÓI VƯỢT LINK ĐỂ UP KEY FREE</label>
+            <select name="tierId" id="freeVaultFilterTier" required>
+              ${tiers.map(t => `<option value="${esc(t.id)}" ${t.id === selectedTier ? 'selected' : ''}>${esc(t.title || `Vượt ${t.linksRequired} link = Key ${t.days} ngày`)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>TẢI FILE KEY (.TXT / .CSV)</label>
+            <input type="file" id="freeKeyFileUpload" accept=".txt,.csv" style="padding:9px;font-size:11px">
+          </div>
+        </div>
+        <div class="field">
+          <label>DANH SÁCH KEY FREE (MỖI DÒNG 1 KEY)</label>
+          <textarea name="freeKeyValues" id="freeKeyValuesTextarea" required placeholder="FREE-1D-ABCD1234&#10;FREE-1D-EFGH5678" style="min-height:110px"></textarea>
+        </div>
+        <button type="submit" class="btn primary">UpKey Free vào gói đã chọn</button>
+      </form>
+
+      <div class="table-wrap" style="margin-top:18px">
+        <table>
+          <thead><tr><th>Mã Key Free</th><th>Trạng thái / IP nhận</th><th>Ngày thêm</th><th>Thao tác</th></tr></thead>
+          <tbody>${vaultRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4. Active 24h IP Locks & Claims Monitor -->
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>4. Danh sách IP &amp; Thiết bị đã nhận Key Free trong 24h (${ipLocks.length})</h2>
+          <p>IP đã nhận key sẽ bị khoá không cho tạo key mới trong 24h. Bạn có thể bấm “Mở khoá IP này” nếu muốn reset lượt cho người dùng.</p>
+        </div>
+        <button type="button" class="btn danger small" id="clearAllIpLocksBtn">Mở khoá tất cả IP</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Địa chỉ IP &amp; Thiết bị</th><th>Key đã cấp &amp; Gói</th><th>Thời gian nhận</th><th>Thao tác</th></tr></thead>
+          <tbody>${ipRows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+async function saveFreeConfig(e) {
+  e.preventDefault();
+  const f = e.currentTarget;
+  const payload = {
+    apiBaseUrl: f.elements.apiBaseUrl.value.trim() || 'https://digitalsmod.site/st?api=5fa5ea4b7fe0b99f43797c7e&url=',
+    minBypassSeconds: Math.max(3, Number(f.elements.minBypassSeconds.value) || 12),
+    maxKeysPerIp24h: Math.max(1, Number(f.elements.maxKeysPerIp24h.value) || 1),
+    maxKeysPerDevice24h: Math.max(1, Number(f.elements.maxKeysPerDevice24h.value) || 2),
+    autoGenerateIfEmpty: f.elements.autoGenerateIfEmpty.checked,
+    updatedAt: Date.now()
+  };
+  try {
+    await set(ref(db, 'store/freeConfig'), payload);
+    toast('Đã lưu cấu hình API Vượt Link & Chống Bypass!');
+  } catch (err) {
+    toast('Lỗi lưu cấu hình: ' + err.message);
+  }
+}
+
+async function seedDefaultFreeTiers() {
+  const data = {};
+  for (const t of DEFAULT_FREE_TIERS_ADMIN) data[t.id] = t;
+  try {
+    await update(ref(db, 'store/freeTiers'), data);
+    toast('Đã khởi tạo 2 gói chuẩn: Vượt 1 Link = Key 1 Ngày & Vượt 2 Link = Key 3 Ngày!');
+  } catch (err) {
+    toast('Lỗi khởi tạo gói: ' + err.message);
+  }
+}
+
+async function handleFreeKeyFileRead(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const text = await file.text();
+  const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const ta = $('freeKeyValuesTextarea');
+  if (ta) ta.value = (ta.value.trim() ? ta.value.trim() + '\n' : '') + lines.join('\n');
+  toast(`Đã nạp ${lines.length} key từ file ${file.name}.`);
+}
+
+async function handleUploadFreeKeys(e) {
+  e.preventDefault();
+  const f = e.currentTarget;
+  const tierId = f.elements.tierId.value;
+  const keys = [...new Set(f.elements.freeKeyValues.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean))];
+  if (!tierId || !keys.length) {
+    toast('Vui lòng chọn gói vượt link và nhập ít nhất 1 key.');
+    return;
+  }
+  try {
+    const updates = {};
+    for (const kv of keys) {
+      const id = push(ref(db, `freeKeyVault/${tierId}`)).key;
+      updates[`freeKeyVault/${tierId}/${id}`] = {
+        value: kv,
+        status: 'available',
+        addedAt: Date.now()
+      };
+    }
+    await update(ref(db), updates);
+    f.elements.freeKeyValues.value = '';
+    preselectedFreeTier = tierId;
+    toast(`Đã Up ${keys.length} Key Free vào gói thành công!`);
+    renderPanel('freeOffers');
+  } catch (err) {
+    toast('UpKey Free thất bại: ' + err.message);
+  }
+}
+
+async function removeFreeKey(tierId, keyId) {
+  const ok = await askConfirm('Xoá Key Free này khỏi kho?');
+  if (!ok) return;
+  await remove(ref(db, `freeKeyVault/${tierId}/${keyId}`));
+  toast('Đã xoá Key Free.');
+}
+
+async function unlockIpClaim(ipKey) {
+  const ok = await askConfirm('Mở khoá 24h cho địa chỉ IP này để họ có thể vượt link lấy key mới?');
+  if (!ok) return;
+  await remove(ref(db, `freeClaimsByIp/${ipKey}`));
+  toast('Đã mở khoá IP thành công!');
+}
+
+async function clearAllIpLocks() {
+  const ok = await askConfirm('Mở khoá toàn bộ danh sách IP đã nhận key trong 24h?');
+  if (!ok) return;
+  await remove(ref(db, 'freeClaimsByIp'));
+  toast('Đã mở khoá toàn bộ IP!');
+}
+
 function renderOrdersPanel() {
-  const all = flattenOrders();
+  const allOrders = flattenOrders();
+  const pendingOrders = allOrders.filter(o => o.status === 'pending').length;
+  const allDep = flattenDeposits();
+  const pendingDeps = allDep.filter(d => d.status === 'pending').length;
+  const usersList = entries(usersMap).sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
+
+  const ordersBlock = `
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>Danh sách đơn hàng của khách (${allOrders.length})</h2>
+          <p>“Xác nhận” đổi trạng thái đơn sang đã xác nhận. “Giao key” sẽ tự động lấy một key khả dụng đúng sản phẩm + thời hạn trong kho.</p>
+        </div>
+        <span class="pill pill-amber">${pendingOrders} đơn đang chờ</span>
+      </div>
+      <div class="toolbar">
+        <input id="orderSearch" class="search" placeholder="Tìm tên, mã đơn, liên hệ, tên tài khoản…">
+        <span class="muted" style="font-size:10px">Tổng ${allOrders.length} đơn</span>
+      </div>
+      <div id="ordersTable">${orderTable(allOrders)}</div>
+    </div>
+  `;
+
+  let subContent = '';
+  if (activeOrdersSubtab === 'all') {
+    subContent = ordersBlock + renderIntegratedDepositsAndWebhook() + renderIntegratedUsers();
+  } else if (activeOrdersSubtab === 'ordersList') {
+    subContent = ordersBlock;
+  } else if (activeOrdersSubtab === 'depositsList') {
+    subContent = renderIntegratedDepositsAndWebhook();
+  } else if (activeOrdersSubtab === 'usersList') {
+    subContent = renderIntegratedUsers();
+  }
+
+  return `
+    <div class="admin-subtabs" role="tablist">
+      <button type="button" class="admin-subtab-btn ${activeOrdersSubtab === 'all' ? 'active' : ''}" data-admin-orders-subtab="all">
+        <span>Hiển thị tất cả bảng</span>
+      </button>
+      <button type="button" class="admin-subtab-btn ${activeOrdersSubtab === 'ordersList' ? 'active' : ''}" data-admin-orders-subtab="ordersList">
+        <span>Đơn hàng &amp; Giao key (${pendingOrders})</span>
+      </button>
+      <button type="button" class="admin-subtab-btn ${activeOrdersSubtab === 'depositsList' ? 'active' : ''}" data-admin-orders-subtab="depositsList">
+        <span>Nạp tiền ACB ONE &amp; Webhook (${pendingDeps})</span>
+      </button>
+      <button type="button" class="admin-subtab-btn ${activeOrdersSubtab === 'usersList' ? 'active' : ''}" data-admin-orders-subtab="usersList">
+        <span>Quản lý tài khoản &amp; Số dư (${usersList.length})</span>
+      </button>
+    </div>
+    ${subContent}
+  `;
+}
+
+function flattenCardCharges() {
+  const rows = [];
+  for (const [uid, list] of Object.entries(cardCharges || {})) {
+    for (const [id, c] of Object.entries(list || {})) {
+      rows.push({uid, id, ...c});
+    }
+  }
+  return rows.sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
+}
+
+function renderIntegratedDepositsAndWebhook() {
+  const allCards = flattenCardCharges();
+  const pendingCardsCount = allCards.filter(c => c.status === 'pending').length;
+  const allDep = flattenDeposits();
+  const pendingCount = allDep.filter(d => d.status === 'pending').length;
+  const allTx = flattenTransactions();
+  const sampleUser = entries(usersMap)[0];
+  const sampleAccName = sampleUser?.accountName || sampleUser?.username || (sampleUser?.email ? sampleUser.email.split('@')[0] : 'datnguyen99');
+
+  const cardRows = allCards.length ? allCards.map(c => {
+    const u = usersMap[c.uid] || {};
+    const accName = c.accountName || u.accountName || u.username || c.uid;
+    const st = c.status === 'approved'
+      ? '<span class="pill pill-green">Thẻ đúng</span>'
+      : c.status === 'wrong_amount'
+      ? '<span class="pill pill-amber">Sai mệnh giá (-50%)</span>'
+      : c.status === 'rejected'
+      ? '<span class="pill pill-red">Thẻ lỗi / Đã dùng</span>'
+      : '<span class="pill pill-amber">Đang chờ xử lý</span>';
+    return `
+      <tr>
+        <td>
+          <span class="item-main">${esc(c.telco || 'VIETTEL')} · ${fmt(c.amount || 0)}</span>
+          <span class="item-sub allow-select">Seri: <b>${esc(c.serial || '')}</b><br>Mã thẻ: <b>${esc(c.code || '')}</b><br>Request ID: ${esc(c.requestId || c.id)}</span>
+        </td>
+        <td>
+          <span class="item-main allow-select">Tên TK: ${esc(accName)}</span>
+          <span class="item-sub">${new Date(Number(c.createdAt) || Date.now()).toLocaleString('vi-VN')}</span>
+        </td>
+        <td><strong style="color:var(--green)">${fmt(c.creditedAmount ?? c.amount ?? 0)}</strong></td>
+        <td>${st}</td>
+        <td>
+          <div class="action-row">
+            ${c.status === 'pending' ? `
+              <button type="button" class="btn primary small" data-card-action="approve" data-uid="${esc(c.uid)}" data-id="${esc(c.id)}">Thẻ đúng (+100%)</button>
+              <button type="button" class="btn secondary small" data-card-action="wrong" data-uid="${esc(c.uid)}" data-id="${esc(c.id)}">Sai mệnh giá (+50%)</button>
+              <button type="button" class="btn danger small" data-card-action="reject" data-uid="${esc(c.uid)}" data-id="${esc(c.id)}">Thẻ lỗi</button>
+            ` : '—'}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('') : '<tr><td colspan="5"><div class="empty">Chưa có thẻ cào nào được gửi lên.</div></td></tr>';
+
+  const depRows = allDep.length ? allDep.map(d => {
+    const u = usersMap[d.uid] || {};
+    const accName = d.accountName || u.accountName || u.username || (u.email ? u.email.split('@')[0] : d.uid);
+    const st = d.status === 'approved'
+      ? '<span class="pill pill-green">Đã cộng tiền</span>'
+      : d.status === 'rejected'
+      ? '<span class="pill pill-red">Đã từ chối</span>'
+      : '<span class="pill pill-amber">Chờ duyệt</span>';
+    return `
+      <tr>
+        <td>
+          <span class="item-main">${esc(d.userName || u.displayName || accName)}</span>
+          <span class="item-sub allow-select">Tên TK: <b>${esc(accName)}</b><br>Nội dung CK: ${esc(d.txCode || accName)}<br>${new Date(Number(d.createdAt) || Date.now()).toLocaleString('vi-VN')}</span>
+        </td>
+        <td><strong style="color:var(--green);font-size:13px">+${fmt(d.amount)}</strong></td>
+        <td>
+          <span class="item-main">${esc(d.method || 'ACB ONE · 28233851')}</span>
+          <span class="item-sub">Chủ TK: NGUYEN DAI QUOC DAT</span>
+        </td>
+        <td>${st}</td>
+        <td>
+          <div class="action-row">
+            ${d.status === 'pending' ? `
+              <button type="button" class="btn primary small" data-deposit-action="approve" data-uid="${esc(d.uid)}" data-id="${esc(d.id)}">Duyệt &amp; Cộng tiền</button>
+              <button type="button" class="btn danger small" data-deposit-action="reject" data-uid="${esc(d.uid)}" data-id="${esc(d.id)}">Từ chối</button>
+            ` : '—'}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('') : '<tr><td colspan="5"><div class="empty">Chưa có yêu cầu nạp tiền nào.</div></td></tr>';
+
+  const txRows = allTx.length ? allTx.slice(0, 30).map(t => {
+    const isPlus = Number(t.amount) >= 0;
+    return `
+      <tr>
+        <td>
+          <span class="item-main">${esc(t.title || 'Giao dịch')}</span>
+          <span class="item-sub">${esc(t.userEmail || t.uid)} · ${new Date(Number(t.createdAt) || Date.now()).toLocaleString('vi-VN')}</span>
+        </td>
+        <td><strong style="color:${isPlus ? 'var(--green)' : 'var(--amber)'}">${isPlus ? '+' : ''}${fmt(t.amount)}</strong></td>
+        <td><span class="item-sub allow-select">${esc(t.detail || '—')}</span></td>
+        <td><span class="pill ${t.status === 'completed' || t.status === 'approved' ? 'pill-green' : t.status === 'rejected' ? 'pill-red' : 'pill-amber'}">${esc(t.status || 'completed')}</span></td>
+      </tr>
+    `;
+  }).join('') : '<tr><td colspan="4"><div class="empty">Chưa có lịch sử giao dịch.</div></td></tr>';
+
   return `
     <div class="panel glass">
       <div class="panel-head">
         <div>
-          <h2>Yêu cầu của khách hàng</h2>
-          <p>“Xác nhận” đổi trạng thái đơn sang đã xác nhận. “Giao key” sẽ tự động lấy một key khả dụng đúng sản phẩm + thời hạn trong kho.</p>
+          <h2>Quản lý &amp; Duyệt Thẻ Cào Của Khách</h2>
+          <p>Hỗ trợ đầy đủ 10 loại thẻ trên <b>GachTheFast.com</b> (Viettel, Vinaphone, Mobifone, Vietnamobile, Zing, Garena, Gate, Vcoin, Appota, Scoin). Kiểm tra số Seri / Mã thẻ của khách và bấm duyệt cộng số dư trực tiếp.</p>
         </div>
-        <span class="pill pill-amber">${all.filter(o => o.status === 'pending').length} đơn đang chờ</span>
+        <span class="pill pill-amber">${pendingCardsCount} thẻ đang chờ</span>
       </div>
-      <div class="toolbar">
-        <input id="orderSearch" class="search" placeholder="Tìm tên, mã đơn, liên hệ, email…">
-        <span class="muted" style="font-size:10px">Tổng ${all.length} đơn</span>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Loại thẻ / Seri &amp; Mã nạp</th><th>Tài khoản gửi</th><th>Mệnh giá / Cộng</th><th>Trạng thái</th><th>Thao tác duyệt</th></tr></thead>
+          <tbody>${cardRows}</tbody>
+        </table>
       </div>
-      <div id="ordersTable">${orderTable(all)}</div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>Webhook Tự động Cộng tiền QR ACB ONE (bank.js)</h2>
+          <p>Tài khoản nhận: <b>ACB ONE · STK 28233851 · Chủ TK: NGUYEN DAI QUOC DAT</b>. Bạn có thể bắn thử giao dịch Webhook ngay bên dưới để kiểm tra tự động khớp tên tài khoản đã tạo và cộng tiền qua Firebase.</p>
+        </div>
+        <span class="pill pill-green">STK 28233851 ACTIVE</span>
+      </div>
+      <form id="simulateWebhookForm" class="stock-controls" style="align-items:end">
+        <div class="field" style="margin:0">
+          <label>NỘI DUNG CHUYỂN KHOẢN (GHI TÊN TÀI KHOẢN ĐÃ TẠO)</label>
+          <input name="transferContent" required value="${esc(sampleAccName)}" placeholder="Nhập tên tài khoản đã tạo của khách…">
+        </div>
+        <div class="field" style="margin:0">
+          <label>SỐ TIỀN NHẬN ĐƯỢC QUA ACB ONE (VND)</label>
+          <div style="display:flex;gap:8px">
+            <input name="transferAmount" type="number" min="1000" step="1000" value="50000" required>
+            <button type="submit" class="btn primary">Test Webhook Cộng tiền</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>Yêu cầu nạp tiền của khách hàng</h2>
+          <p>Bấm “Duyệt &amp; Cộng tiền” hoặc để Webhook <code>bank.js</code> tự động khớp tên tài khoản và cộng số dư.</p>
+        </div>
+        <span class="pill pill-amber">${pendingCount} lệnh chờ duyệt</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tài khoản / Nội dung CK</th><th>Số tiền nạp</th><th>Ngân hàng nhận</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+          <tbody>${depRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>Lịch sử giao dịch toàn hệ thống</h2>
+          <p>Ghi nhận mọi biến động nạp tiền từ Webhook <code>bank.js</code>, mua key bằng số dư và điều chỉnh ví.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Giao dịch / Tài khoản</th><th>Số tiền</th><th>Chi tiết / Mã key</th><th>Trạng thái</th></tr></thead>
+          <tbody>${txRows}</tbody>
+        </table>
+      </div>
     </div>
   `;
+}
+
+function renderIntegratedUsers() {
+  const list = entries(usersMap).sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
+  const rows = list.length ? list.map(u => {
+    const accName = u.accountName || u.username || (u.rawIdentifier ? String(u.rawIdentifier).split('@')[0] : '') || (u.email ? String(u.email).split('@')[0] : u.id);
+    return `
+      <tr>
+        <td>
+          <span class="item-main allow-select">Tên TK: ${esc(accName)}</span>
+          <span class="item-sub allow-select">Tên hiển thị: ${esc(u.displayName || accName)}<br>UID: ${esc(u.uid || u.id)}</span>
+        </td>
+        <td><strong style="color:var(--cyan);font-size:13px">${fmt(u.balance || 0)}</strong></td>
+        <td>${u.banned ? '<span class="pill pill-red">Đã khoá</span>' : '<span class="pill pill-green">Hoạt động</span>'}</td>
+        <td>${u.createdAt ? new Date(Number(u.createdAt)).toLocaleString('vi-VN') : '—'}</td>
+        <td>
+          <div class="action-row">
+            <button type="button" class="btn primary small" data-user-action="add" data-uid="${esc(u.id)}">Cộng tiền</button>
+            <button type="button" class="btn secondary small" data-user-action="sub" data-uid="${esc(u.id)}">Trừ tiền</button>
+            <button type="button" class="btn ${u.banned ? 'success' : 'danger'} small" data-user-action="ban" data-uid="${esc(u.id)}">${u.banned ? 'Mở khoá' : 'Khoá TK'}</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('') : '<tr><td colspan="5"><div class="empty">Chưa có tài khoản người dùng nào đăng ký.</div></td></tr>';
+
+  return `
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>Quản lý tài khoản thành viên (${list.length})</h2>
+          <p>Tên tài khoản đã tạo ở cột đầu tiên chính là nội dung chuyển khoản chuẩn để hệ thống Webhook <code>bank.js</code> nhận diện cộng tiền tự động.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tên tài khoản đã tạo / UID</th><th>Số dư ví</th><th>Trạng thái</th><th>Ngày đăng ký</th><th>Thao tác</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+async function handleSimulateWebhook(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const content = form.elements.transferContent.value.trim();
+  const amount = Math.max(1000, Number(form.elements.transferAmount.value) || 0);
+  try {
+    const res = await processBankWebhookWithFirebaseSdk({
+      db,
+      firebaseFns: { ref, get, set, update, push, runTransaction },
+      payload: {
+        id: 'ACB_' + Date.now(),
+        accountNumber: BANK_CONFIG.accountNumber,
+        transferAmount: amount,
+        content: content,
+        transferType: 'in'
+      }
+    });
+    if (res.processed > 0) {
+      const item = res.results.find(r => r.status === 'credited');
+      toast(`Webhook ACB ONE thành công! Đã cộng +${fmt(amount)} cho tài khoản "${item?.matchedAccountName}".`);
+    } else {
+      toast(`Không tìm thấy tài khoản nào có tên khớp với nội dung "${content}". Hãy kiểm tra lại tên tài khoản đã tạo!`);
+    }
+  } catch (err) {
+    toast('Lỗi chạy Webhook: ' + err.message);
+  }
 }
 
 function renderRulesPanel() {
@@ -2308,14 +3981,40 @@ function renderRulesPanel() {
         ".write": "auth != null"
       },
       "users": {
-        "$uid": {
-          ".read": "auth != null",
-          ".write": "auth != null"
-        }
+        ".read": "auth != null",
+        ".write": "auth != null"
       },
       "orders": {
         ".read": "auth != null",
         ".write": "auth != null"
+      },
+      "deposits": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      },
+      "transactions": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      },
+      "processedBankTx": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      },
+      "bankWebhooksQueue": {
+        ".read": true,
+        ".write": true
+      },
+      "cardCharges": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      },
+      "processedCardTx": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      },
+      "cardWebhooksQueue": {
+        ".read": true,
+        ".write": true
       }
     }
   }, null, 2);
@@ -2333,7 +4032,7 @@ service firebase.storage {
 
   return `
     <div class="notice">
-      Toàn bộ hệ thống đã được gộp gọn vào 2 file <code>index.html</code> và <code>admin.html</code>. Vì trang Admin dùng mật khẩu cố định (<code>chanbomaydi</code>) và tự động kết nối phiên Firebase nền, bạn có thể dán Rules bên dưới vào Firebase Console để upload ảnh/video và quản lý kho key mượt mà không cần tạo tài khoản Admin riêng.
+      <b>Cấu hình Webhook ACB ONE (bank.js):</b> Ngân hàng <b>ACB ONE</b> · STK <b>28233851</b> · Chủ TK <b>NGUYEN DAI QUOC DAT</b>. Bạn có thể dùng <code>bank.js</code> làm Cloudflare Worker / Node.js Endpoint hoặc bắn trực tiếp JSON giao dịch vào <code>https://ideo-dd376-default-rtdb.asia-southeast1.firebasedatabase.app/bankWebhooksQueue.json</code> để tự động cộng tiền theo tên tài khoản đã tạo.
     </div>
     <div class="panel glass">
       <div class="panel-head">
@@ -2358,20 +4057,212 @@ service firebase.storage {
   `;
 }
 
+async function handleKeyFileUpload(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    const ta = $('keyValuesTextarea');
+    if (ta) {
+      ta.value = (ta.value.trim() ? ta.value.trim() + '\n' : '') + lines.join('\n');
+    }
+    toast(`Đã đọc ${lines.length} key từ tệp ${file.name}. Bấm nút Lưu để đưa vào kho.`);
+  } catch (err) {
+    toast('Không đọc được tệp key: ' + err.message);
+  }
+}
+
+function flattenDeposits() {
+  const rows = [];
+  for (const [uid, list] of Object.entries(deposits || {})) {
+    for (const [id, d] of Object.entries(list || {})) {
+      rows.push({uid, id, ...d});
+    }
+  }
+  return rows.sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
+}
+
+function flattenTransactions() {
+  const rows = [];
+  for (const [uid, list] of Object.entries(transactions || {})) {
+    for (const [id, t] of Object.entries(list || {})) {
+      rows.push({uid, id, ...t});
+    }
+  }
+  return rows.sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
+}
+
+async function processDeposit(uid, id, action) {
+  const path = `deposits/${uid}/${id}`;
+  const snap = await get(ref(db, path));
+  const dep = snap.val();
+  if (!dep) {
+    toast('Không tìm thấy yêu cầu nạp tiền.');
+    return;
+  }
+  if (dep.status !== 'pending') {
+    toast('Yêu cầu này đã được xử lý trước đó.');
+    return;
+  }
+  if (action === 'reject') {
+    const ok = await askConfirm('Từ chối yêu cầu nạp tiền này?');
+    if (!ok) return;
+    await update(ref(db, path), {status: 'rejected', processedAt: Date.now()});
+    const txRef = push(ref(db, `transactions/${uid}`));
+    await set(txRef, {
+      type: 'deposit_rejected',
+      title: 'Từ chối yêu cầu nạp tiền',
+      amount: 0,
+      detail: `Yêu cầu nạp ${fmt(dep.amount)} bị từ chối`,
+      status: 'rejected',
+      userEmail: dep.userEmail || '',
+      createdAt: Date.now()
+    });
+    toast('Đã từ chối yêu cầu nạp tiền.');
+    return;
+  }
+  if (action === 'approve') {
+    const amount = Number(dep.amount) || 0;
+    const balRef = ref(db, `users/${uid}/balance`);
+    await runTransaction(balRef, cur => (Number(cur) || 0) + amount);
+    await update(ref(db, path), {status: 'approved', processedAt: Date.now()});
+    const txRef = push(ref(db, `transactions/${uid}`));
+    await set(txRef, {
+      type: 'deposit',
+      title: 'Nạp tiền ACB ONE thành công',
+      amount: amount,
+      detail: `Nội dung CK: ${dep.txCode || dep.accountName || id} (ACB ONE · 28233851)`,
+      status: 'completed',
+      userEmail: dep.userEmail || '',
+      createdAt: Date.now()
+    });
+    toast(`Đã duyệt và cộng +${fmt(amount)} vào tài khoản khách!`);
+  }
+}
+
+function openBalanceModal(uid, mode) {
+  const u = usersMap[uid] || {};
+  const accName = u.accountName || u.username || u.displayName || u.email || uid;
+  $('balTargetUid').value = uid;
+  $('balActionMode').value = mode;
+  $('balanceModalTitle').textContent = (mode === 'add' ? 'Cộng tiền: ' : 'Trừ tiền: ') + accName;
+  $('balanceModalSub').textContent = `Số dư hiện tại: ${fmt(u.balance || 0)}`;
+  $('balAmountInput').value = '';
+  $('balNoteInput').value = '';
+  $('balanceModalBg').classList.add('open');
+  syncModalOpenClass();
+}
+function closeBalanceModal() {
+  $('balanceModalBg').classList.remove('open');
+  syncModalOpenClass();
+}
+$('balanceModalClose').addEventListener('click', closeBalanceModal);
+$('balanceModalCancel').addEventListener('click', closeBalanceModal);
+$('balanceModalBg').addEventListener('click', e => {
+  if (e.target === $('balanceModalBg')) closeBalanceModal();
+});
+
+$('balanceAdjustForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const uid = $('balTargetUid').value;
+  const mode = $('balActionMode').value;
+  const rawAmt = Math.abs(Number($('balAmountInput').value) || 0);
+  const note = $('balNoteInput').value.trim() || (mode === 'add' ? 'Admin cộng số dư' : 'Admin trừ số dư');
+  if (!uid || rawAmt <= 0) return;
+  const delta = mode === 'add' ? rawAmt : -rawAmt;
+  try {
+    const balRef = ref(db, `users/${uid}/balance`);
+    await runTransaction(balRef, cur => Math.max(0, (Number(cur) || 0) + delta));
+    const u = usersMap[uid] || {};
+    const txRef = push(ref(db, `transactions/${uid}`));
+    await set(txRef, {
+      type: 'admin_adjust',
+      title: mode === 'add' ? 'Quản trị viên cộng số dư' : 'Quản trị viên trừ số dư',
+      amount: delta,
+      detail: note,
+      status: 'completed',
+      userEmail: u.email || '',
+      createdAt: Date.now()
+    });
+    closeBalanceModal();
+    toast(`Đã ${mode === 'add' ? 'cộng' : 'trừ'} ${fmt(rawAmt)} cho tài khoản!`);
+  } catch (err) {
+    toast('Lỗi cập nhật số dư: ' + err.message);
+  }
+});
+
+async function toggleUserBan(uid) {
+  const u = usersMap[uid] || {};
+  const nextBan = !u.banned;
+  const ok = await askConfirm(nextBan ? 'Khoá tài khoản người dùng này?' : 'Mở khoá cho tài khoản này?');
+  if (!ok) return;
+  await update(ref(db, `users/${uid}`), {banned: nextBan, updatedAt: Date.now()});
+  toast(nextBan ? 'Đã khoá tài khoản.' : 'Đã mở khoá tài khoản.');
+}
+
 $('panelContent').addEventListener('click', e => {
+  const gotoSub = e.target.closest('[data-goto-subtab]');
+  if (gotoSub) {
+    activeOrdersSubtab = gotoSub.dataset.gotoSubtab;
+    renderPanel('orders');
+    return;
+  }
   const nav = e.target.closest('[data-goto]');
   if (nav) {
     renderPanel(nav.dataset.goto);
     return;
   }
   const action = e.target.closest('[data-order-action]');
-  if (action) processOrder(action.dataset.uid, action.dataset.id, action.dataset.orderAction);
+  if (action) {
+    processOrder(action.dataset.uid, action.dataset.id, action.dataset.orderAction);
+    return;
+  }
+  const depBtn = e.target.closest('[data-deposit-action]');
+  if (depBtn) {
+    processDeposit(depBtn.dataset.uid, depBtn.dataset.id, depBtn.dataset.depositAction);
+    return;
+  }
+  const cardBtn = e.target.closest('[data-card-action]');
+  if (cardBtn) {
+    const uid = cardBtn.dataset.uid;
+    const cid = cardBtn.dataset.id;
+    const act = cardBtn.dataset.cardAction;
+    const ch = cardCharges[uid]?.[cid];
+    if (!ch) return;
+    const amt = Number(ch.amount) || 0;
+    const credit = act === 'approve' ? amt : act === 'wrong' ? Math.round(amt * 0.5) : 0;
+    (async () => {
+      try {
+        if (credit > 0) {
+          await runTransaction(ref(db, `users/${uid}/balance`), cur => (Number(cur) || 0) + credit);
+        }
+        await update(ref(db, `cardCharges/${uid}/${cid}`), {
+          status: act === 'approve' ? 'approved' : act === 'wrong' ? 'wrong_amount' : 'rejected',
+          creditedAmount: credit,
+          apiMessage: act === 'approve' ? 'Thẻ đúng mệnh giá' : act === 'wrong' ? 'Sai mệnh giá (-50%)' : 'Thẻ lỗi / Đã dùng',
+          processedAt: Date.now()
+        });
+        toast(credit > 0 ? `Đã duyệt thẻ và cộng +${fmt(credit)} cho khách!` : 'Đã từ chối thẻ cào.');
+      } catch (err) {
+        toast('Lỗi duyệt thẻ: ' + err.message);
+      }
+    })();
+    return;
+  }
+  const userBtn = e.target.closest('[data-user-action]');
+  if (userBtn) {
+    const act = userBtn.dataset.userAction;
+    const uid = userBtn.dataset.uid;
+    if (act === 'add' || act === 'sub') openBalanceModal(uid, act);
+    else if (act === 'ban') toggleUserBan(uid);
+  }
 });
 
 $('panelContent').addEventListener('input', e => {
   if (e.target.id === 'orderSearch') {
     const q = e.target.value.toLowerCase();
-    const all = flattenOrders().filter(o => [o.id, o.customerName, o.contact, o.productName, o.status, o.userEmail].some(v => String(v || '').toLowerCase().includes(q)));
+    const all = flattenOrders().filter(o => [o.id, o.customerName, o.contact, o.productName, o.status, o.accountName, o.userEmail].some(v => String(v || '').toLowerCase().includes(q)));
     $('ordersTable').innerHTML = orderTable(all);
   }
 });
@@ -2450,7 +4341,6 @@ async function processOrder(uid, id, action) {
   }
 }
 
-/* Fixed Password Login Flow ('chanbomaydi') */
 async function ensureAnonFirebaseSession() {
   try {
     if (!auth.currentUser) {
@@ -2484,7 +4374,7 @@ $('loginForm').addEventListener('submit', async e => {
     toast('Đăng nhập quản trị thành công!');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Đăng nhập an toàn ↗';
+    btn.textContent = 'Đăng nhập an toàn';
   }
 });
 
@@ -2502,7 +4392,6 @@ $('logoutButton').addEventListener('click', logout);
 $('topLogout').addEventListener('click', logout);
 $('sideNav').querySelectorAll('button').forEach(b => b.addEventListener('click', () => renderPanel(b.dataset.panel)));
 
-// Restore unlocked session if already authenticated in current tab
 try {
   if (sessionStorage.getItem(SESSION_KEY) === '1') {
     ensureAnonFirebaseSession().then(() => {
