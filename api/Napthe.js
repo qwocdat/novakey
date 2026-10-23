@@ -1,48 +1,39 @@
 /**
+ * ============================================================================
  * KEYNOVA · GachTheFast.Com Scratch Card Charging & Webhook Module (napthe.js)
- * ----------------------------------------------------------------------------
- * Tích hợp đầy đủ tất cả loại thẻ cào và mệnh giá trên https://gachthefast.com
- * Endpoint chuẩn: https://gachthefast.com/chargingws/v2
+ * ============================================================================
+ * - Cổng gạch thẻ tự động: https://gachthefast.com/chargingws/v2
+ * - Chữ ký bảo mật chuẩn: sign = md5(partner_key + code + serial)
+ * - Firebase RTDB: https://ideo-dd376-default-rtdb.asia-southeast1.firebasedatabase.app
  *
- * Danh sách nhà mạng / thẻ game hỗ trợ đầy đủ theo GachTheFast.com:
- * - VIETTEL (Thẻ Viettel)
- * - VINAPHONE (Thẻ Vinaphone)
- * - MOBIFONE (Thẻ Mobifone)
- * - VIETNAMOBILE (Thẻ Vietnamobile)
- * - ZING (Thẻ Zing VNG)
- * - GARENA (Thẻ Garena)
- * - GATE (Thẻ Gate FPT)
- * - VCOIN (Thẻ Vcoin VTC)
- * - APPOTA (Thẻ Appota)
- * - SCOIN (Thẻ Scoin)
+ * Hỗ trợ đầy đủ 10 loại thẻ trên GachTheFast.com:
+ * VIETTEL, VINAPHONE, MOBIFONE, VIETNAMOBILE, ZING, GARENA, GATE, VCOIN, APPOTA, SCOIN
+ * Mệnh giá: 10.000đ -> 1.000.000đ
  *
- * Hỗ trợ:
- * 1. Gửi thẻ trực tiếp lên GachTheFast.com API (`POST https://gachthefast.com/chargingws/v2`)
- *    kèm chữ ký bảo mật `sign = md5(partner_key + code + serial)`.
- * 2. Nhận Callback Webhook (GET/POST) từ GachTheFast.com khi thẻ xử lý xong:
- *    - `status == 1`: Thẻ đúng mệnh giá -> Tự động cộng tiền / kích hoạt đơn hàng trên Firebase.
- *    - `status == 2`: Thẻ đúng nhưng sai mệnh giá -> Tự động tính theo quy định phạt 50% mệnh giá nhỏ.
- *    - `status == 3`: Thẻ lỗi / đã sử dụng -> Cập nhật trạng thái thất bại.
- *    - `status == 99`: Thẻ đang chờ xử lý.
- * 3. Lắng nghe thời gian thực nhánh `cardWebhooksQueue` trên Firebase Realtime Database.
+ * Quy chuẩn xử lý Callback GachTheFast.com:
+ * - status == 1: Thẻ đúng mệnh giá -> Tự động cộng 100% giá trị vào `users/{uid}/balance`.
+ * - status == 2: Thẻ đúng nhưng sai mệnh giá -> Tự động cộng 50% mệnh giá nhỏ.
+ * - status == 3 / 4: Thẻ lỗi hoặc đã sử dụng -> Cập nhật trạng thái từ chối.
+ * - status == 99: Đang chờ xử lý.
+ * ============================================================================
  */
 
-export const GACHTHEFAST_CONFIG = {
+const GACHTHEFAST_CONFIG = {
   apiUrl: 'https://gachthefast.com/chargingws/v2',
   firebaseDatabaseUrl: 'https://ideo-dd376-default-rtdb.asia-southeast1.firebasedatabase.app',
   defaultPartnerId: '',
   defaultPartnerKey: '',
   telcos: [
-    { code: 'VIETTEL', name: 'Viettel', discount: 10.7, serialLen: [11, 15], pinLen: [13, 15] },
-    { code: 'VINAPHONE', name: 'Vinaphone', discount: 14.5, serialLen: [14, 14], pinLen: [12, 14] },
-    { code: 'MOBIFONE', name: 'Mobifone', discount: 15.2, serialLen: [15, 15], pinLen: [12, 12] },
-    { code: 'VIETNAMOBILE', name: 'Vietnamobile', discount: 18.0, serialLen: [11, 16], pinLen: [12, 16] },
-    { code: 'ZING', name: 'Zing (VNG)', discount: 14.0, serialLen: [9, 15], pinLen: [9, 15] },
-    { code: 'GARENA', name: 'Garena', discount: 15.0, serialLen: [8, 16], pinLen: [8, 16] },
-    { code: 'GATE', name: 'Gate (FPT)', discount: 15.5, serialLen: [8, 15], pinLen: [8, 15] },
-    { code: 'VCOIN', name: 'Vcoin (VTC)', discount: 15.0, serialLen: [9, 15], pinLen: [9, 15] },
-    { code: 'APPOTA', name: 'Appota', discount: 16.0, serialLen: [8, 16], pinLen: [8, 16] },
-    { code: 'SCOIN', name: 'Scoin', discount: 16.5, serialLen: [8, 16], pinLen: [8, 16] }
+    { code: 'VIETTEL', name: 'Thẻ Viettel', discount: 10.7, serialLen: [11, 15], pinLen: [13, 15] },
+    { code: 'VINAPHONE', name: 'Thẻ Vinaphone', discount: 14.5, serialLen: [14, 14], pinLen: [12, 14] },
+    { code: 'MOBIFONE', name: 'Thẻ Mobifone', discount: 15.2, serialLen: [15, 15], pinLen: [12, 12] },
+    { code: 'VIETNAMOBILE', name: 'Thẻ Vietnamobile', discount: 18.0, serialLen: [11, 16], pinLen: [12, 16] },
+    { code: 'ZING', name: 'Thẻ Zing (VNG)', discount: 14.0, serialLen: [9, 15], pinLen: [9, 15] },
+    { code: 'GARENA', name: 'Thẻ Garena', discount: 15.0, serialLen: [8, 16], pinLen: [8, 16] },
+    { code: 'GATE', name: 'Thẻ Gate (FPT)', discount: 15.5, serialLen: [8, 15], pinLen: [8, 15] },
+    { code: 'VCOIN', name: 'Thẻ Vcoin (VTC)', discount: 15.0, serialLen: [9, 15], pinLen: [9, 15] },
+    { code: 'APPOTA', name: 'Thẻ Appota', discount: 16.0, serialLen: [8, 16], pinLen: [8, 16] },
+    { code: 'SCOIN', name: 'Thẻ Scoin', discount: 16.5, serialLen: [8, 16], pinLen: [8, 16] }
   ],
   denominations: [
     10000,
@@ -59,9 +50,8 @@ export const GACHTHEFAST_CONFIG = {
 
 /**
  * Thuật toán MD5 thuần JavaScript để tạo chữ ký `sign = md5(partner_key + code + serial)`
- * tương thích cả trên trình duyệt, Cloudflare Workers và Node.js.
  */
-export function md5Hash(string) {
+function md5Hash(string) {
   function rotateLeft(lValue, iShiftBits) {
     return (lValue << iShiftBits) | (lValue >>> (32 - iShiftBits));
   }
@@ -217,14 +207,14 @@ export function md5Hash(string) {
 /**
  * Tạo chữ ký chuẩn GachTheFast.com: md5(partner_key + code + serial)
  */
-export function buildGachTheFastSign(partnerKey, code, serial) {
+function buildGachTheFastSign(partnerKey, code, serial) {
   return md5Hash(`${String(partnerKey || '').trim()}${String(code || '').trim()}${String(serial || '').trim()}`);
 }
 
 /**
  * Gửi thẻ cào lên hệ thống GachTheFast.com (`POST https://gachthefast.com/chargingws/v2`)
  */
-export async function submitCardToGachTheFast({
+async function submitCardToGachTheFast({
   telco,
   code,
   serial,
@@ -286,7 +276,7 @@ export async function submitCardToGachTheFast({
 /**
  * Chuẩn hoá dữ liệu Callback Webhook từ GachTheFast.com
  */
-export function parseCardCallbackPayload(payload = {}) {
+function parseCardCallbackPayload(payload = {}) {
   if (!payload || typeof payload !== 'object') return null;
   const status = Number(payload.status ?? 99);
   const requestId = String(payload.request_id || payload.requestId || '').trim();
@@ -302,9 +292,6 @@ export function parseCardCallbackPayload(payload = {}) {
 
   if (!requestId && !serial && !code) return null;
 
-  // Tính số tiền cộng cho khách theo chuẩn GachTheFast.com:
-  // status == 1: Thẻ đúng -> nhận đủ mệnh giá thực
-  // status == 2: Sai mệnh giá -> phạt 50% mệnh giá nhỏ
   let creditedValue = 0;
   if (status === 1) {
     creditedValue = realValue > 0 ? realValue : declaredValue;
@@ -331,9 +318,9 @@ export function parseCardCallbackPayload(payload = {}) {
 }
 
 /**
- * Xử lý Callback Webhook GachTheFast.com trực tiếp qua Firebase SDK v12
+ * Xử lý Callback Webhook GachTheFast.com trực tiếp qua Firebase SDK
  */
-export async function processCardWebhookWithFirebaseSdk({ db, firebaseFns, payload, partnerKey = '' }) {
+async function processCardWebhookWithFirebaseSdk({ db, firebaseFns, payload, partnerKey = '' }) {
   const { ref, get, set, update, push, runTransaction } = firebaseFns;
   const parsed = parseCardCallbackPayload(payload);
   if (!parsed) {
@@ -347,7 +334,6 @@ export async function processCardWebhookWithFirebaseSdk({ db, firebaseFns, paylo
     }
   }
 
-  // Tìm thẻ trong nhánh `cardCharges` theo `requestId` hoặc `serial + code`
   const chargesSnap = await get(ref(db, 'cardCharges'));
   const allCharges = chargesSnap.val() || {};
   let matchedUid = '';
@@ -381,7 +367,6 @@ export async function processCardWebhookWithFirebaseSdk({ db, firebaseFns, paylo
 
   const lockKey = (parsed.requestId || `${matchedUid}_${matchedChargeId}`).replace(/[.#$/[\]\s]/g, '_');
 
-  // Nếu trạng thái = 99 (Đang chờ), chỉ cập nhật trạng thái
   if (parsed.status === 99) {
     await update(ref(db, `cardCharges/${matchedUid}/${matchedChargeId}`), {
       status: 'pending',
@@ -391,7 +376,6 @@ export async function processCardWebhookWithFirebaseSdk({ db, firebaseFns, paylo
     return { ok: true, status: 'pending', uid: matchedUid, chargeId: matchedChargeId };
   }
 
-  // Chống xử lý trùng lặp bằng transaction trên `processedCardTx/{lockKey}`
   const lockRef = ref(db, `processedCardTx/${lockKey}`);
   const lockTx = await runTransaction(lockRef, cur => {
     if (cur !== null) return;
@@ -425,11 +409,10 @@ export async function processCardWebhookWithFirebaseSdk({ db, firebaseFns, paylo
       processedAt: Date.now()
     });
 
-    // Ghi lịch sử giao dịch
     const txRef = push(ref(db, `transactions/${matchedUid}`));
     await set(txRef, {
       type: 'card_recharge',
-      title: `Nạp thẻ ${parsed.telco} ${parsed.declaredValue.toLocaleString('vi-VN')}đ (${parsed.status === 1 ? 'Thẻ đúng' : 'Sai mệnh giá'})`,
+      title: `Nạp thẻ ${parsed.telco} ${(parsed.declaredValue || creditAmt).toLocaleString('vi-VN')}đ (${parsed.status === 1 ? 'Thẻ đúng' : 'Sai mệnh giá'})`,
       amount: creditAmt,
       balanceAfter: newBalance,
       detail: `Seri: ${parsed.serial} · Mã: ${parsed.code} · Cộng: +${creditAmt.toLocaleString('vi-VN')}đ`,
@@ -447,7 +430,6 @@ export async function processCardWebhookWithFirebaseSdk({ db, firebaseFns, paylo
     };
   }
 
-  // Trường hợp thẻ lỗi / đã sử dụng (status == 3 hoặc khác)
   await update(ref(db, `cardCharges/${matchedUid}/${matchedChargeId}`), {
     status: 'rejected',
     apiMessage: parsed.message || 'Thẻ sai hoặc đã được sử dụng',
@@ -457,7 +439,7 @@ export async function processCardWebhookWithFirebaseSdk({ db, firebaseFns, paylo
   const txRef = push(ref(db, `transactions/${matchedUid}`));
   await set(txRef, {
     type: 'card_rejected',
-    title: `Nạp thẻ ${parsed.telco} ${parsed.declaredValue.toLocaleString('vi-VN')}đ thất bại`,
+    title: `Nạp thẻ ${parsed.telco} ${(parsed.declaredValue || 0).toLocaleString('vi-VN')}đ thất bại`,
     amount: 0,
     detail: `Seri: ${parsed.serial} · Lý do: ${parsed.message || 'Thẻ sai hoặc đã sử dụng'}`,
     status: 'rejected',
@@ -475,7 +457,7 @@ export async function processCardWebhookWithFirebaseSdk({ db, firebaseFns, paylo
 /**
  * Lắng nghe nhánh `cardWebhooksQueue` trên Firebase Realtime Database
  */
-export function startCardWebhookListener({ db, firebaseFns, getPartnerKey, onProcessed }) {
+function startCardWebhookListener({ db, firebaseFns, getPartnerKey, onProcessed }) {
   const { ref, onValue, update } = firebaseFns;
   const queueRef = ref(db, 'cardWebhooksQueue');
   return onValue(queueRef, async snap => {
@@ -506,9 +488,9 @@ export function startCardWebhookListener({ db, firebaseFns, getPartnerKey, onPro
 
 /**
  * Serverless Webhook Handler cho GachTheFast.com (Node.js / Cloudflare Workers / Vercel)
- * Đẩy callback từ GachTheFast.com vào `cardWebhooksQueue` và cập nhật Firebase RTDB.
+ * Vừa đẩy vào `cardWebhooksQueue`, vừa tự động đối soát & cộng tiền trực tiếp qua REST API!
  */
-export async function handleServerlessCardWebhook(payload, options = {}) {
+async function handleServerlessCardWebhook(payload, options = {}) {
   const dbUrl = (options.databaseURL || GACHTHEFAST_CONFIG.firebaseDatabaseUrl).replace(/\/$/, '');
   const authQuery = options.databaseSecret ? `?auth=${encodeURIComponent(options.databaseSecret)}` : '';
   const parsed = parseCardCallbackPayload(payload);
@@ -516,15 +498,93 @@ export async function handleServerlessCardWebhook(payload, options = {}) {
     return { statusCode: 400, body: { ok: false, message: 'Invalid GachTheFast callback payload' } };
   }
 
-  await fetch(`${dbUrl}/cardWebhooksQueue.json${authQuery}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      payload,
-      processed: false,
-      receivedAt: Date.now()
-    })
-  });
+  try {
+    await fetch(`${dbUrl}/cardWebhooksQueue.json${authQuery}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        payload,
+        processed: false,
+        receivedAt: Date.now()
+      })
+    });
+  } catch {}
+
+  // Đối soát trực tiếp trên Firebase REST API nếu chạy độc lập trên Worker/Server
+  try {
+    const chargesRes = await fetch(`${dbUrl}/cardCharges.json${authQuery}`);
+    const allCharges = (await chargesRes.json()) || {};
+    let matchedUid = '';
+    let matchedChargeId = '';
+    for (const [uid, userCharges] of Object.entries(allCharges)) {
+      for (const [cId, ch] of Object.entries(userCharges || {})) {
+        if (!ch) continue;
+        if (
+          (parsed.requestId && (ch.requestId === parsed.requestId || cId === parsed.requestId)) ||
+          (parsed.serial && parsed.code && ch.serial === parsed.serial && ch.code === parsed.code)
+        ) {
+          matchedUid = uid;
+          matchedChargeId = cId;
+          break;
+        }
+      }
+      if (matchedUid) break;
+    }
+
+    if (matchedUid && parsed.status !== 99) {
+      const lockKey = (parsed.requestId || `${matchedUid}_${matchedChargeId}`).replace(/[.#$/[\]\s]/g, '_');
+      const checkRes = await fetch(`${dbUrl}/processedCardTx/${encodeURIComponent(lockKey)}.json${authQuery}`);
+      const existing = await checkRes.json();
+      if (!existing) {
+        await fetch(`${dbUrl}/processedCardTx/${encodeURIComponent(lockKey)}.json${authQuery}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lockKey,
+            uid: matchedUid,
+            chargeId: matchedChargeId,
+            telco: parsed.telco,
+            serial: parsed.serial,
+            status: parsed.status,
+            creditedValue: parsed.creditedValue,
+            processedAt: Date.now()
+          })
+        });
+
+        if (parsed.status === 1 || parsed.status === 2) {
+          const balRes = await fetch(`${dbUrl}/users/${encodeURIComponent(matchedUid)}/balance.json${authQuery}`);
+          const curBal = Number(await balRes.json()) || 0;
+          const nextBal = curBal + parsed.creditedValue;
+          await fetch(`${dbUrl}/users/${encodeURIComponent(matchedUid)}/balance.json${authQuery}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(nextBal)
+          });
+          await fetch(`${dbUrl}/cardCharges/${encodeURIComponent(matchedUid)}/${encodeURIComponent(matchedChargeId)}.json${authQuery}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: parsed.status === 1 ? 'approved' : 'wrong_amount',
+              realValue: parsed.realValue,
+              creditedAmount: parsed.creditedValue,
+              apiMessage: parsed.status === 1 ? 'Thẻ đúng mệnh giá' : 'Thẻ sai mệnh giá (-50%)',
+              processedAt: Date.now()
+            })
+          });
+        } else {
+          await fetch(`${dbUrl}/cardCharges/${encodeURIComponent(matchedUid)}/${encodeURIComponent(matchedChargeId)}.json${authQuery}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: 'rejected',
+              apiMessage: parsed.message || 'Thẻ lỗi hoặc đã sử dụng',
+              processedAt: Date.now()
+            })
+          });
+        }
+      }
+    }
+  } catch {}
 
   return {
     statusCode: 200,
@@ -532,12 +592,13 @@ export async function handleServerlessCardWebhook(payload, options = {}) {
       ok: true,
       service: 'KEYNOVA GachTheFast.com Webhook (napthe.js)',
       requestId: parsed.requestId,
-      status: parsed.status
+      status: parsed.status,
+      creditedValue: parsed.creditedValue
     }
   };
 }
 
-export default {
+const KEYNOVA_NAPTHE_MODULE = {
   GACHTHEFAST_CONFIG,
   md5Hash,
   buildGachTheFastSign,
@@ -569,7 +630,7 @@ export default {
             telcos: GACHTHEFAST_CONFIG.telcos.map(t => t.code),
             denominations: GACHTHEFAST_CONFIG.denominations
           }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } }
+          { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
         );
       }
       const result = await handleServerlessCardWebhook(payload, {
@@ -578,13 +639,93 @@ export default {
       });
       return new Response(JSON.stringify(result.body), {
         status: result.statusCode,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json; charset=utf-8' }
       });
     } catch (err) {
       return new Response(JSON.stringify({ ok: false, error: err.message }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json; charset=utf-8' }
       });
     }
   }
 };
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.KEYNOVA_NAPTHE = KEYNOVA_NAPTHE_MODULE;
+  Object.assign(globalThis, KEYNOVA_NAPTHE_MODULE);
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = KEYNOVA_NAPTHE_MODULE;
+  module.exports.default = KEYNOVA_NAPTHE_MODULE;
+}
+
+// Nếu chạy trực tiếp bằng lệnh `node napthe.js`, tự động mở cổng HTTP Webhook Callback cho GachTheFast.com
+if (typeof require !== 'undefined' && typeof module !== 'undefined' && require.main === module) {
+  const http = require('http');
+  const PORT = Number(process.env.NAPTHE_WEBHOOK_PORT || process.env.PORT || 3002);
+  const DB_URL = process.env.FIREBASE_DATABASE_URL || GACHTHEFAST_CONFIG.firebaseDatabaseUrl;
+  const DB_SECRET = process.env.FIREBASE_DB_SECRET || '';
+
+  const server = http.createServer((req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      return res.end();
+    }
+    const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    if (req.method === 'GET') {
+      const payload = {};
+      reqUrl.searchParams.forEach((v, k) => { payload[k] = v; });
+      if (!Object.keys(payload).length) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({
+          ok: true,
+          service: 'KEYNOVA GachTheFast.com Webhook Server (napthe.js)',
+          apiUrl: GACHTHEFAST_CONFIG.apiUrl,
+          telcos: GACHTHEFAST_CONFIG.telcos.map(t => t.code),
+          denominations: GACHTHEFAST_CONFIG.denominations
+        }));
+      }
+      handleServerlessCardWebhook(payload, { databaseURL: DB_URL, databaseSecret: DB_SECRET })
+        .then(out => {
+          res.writeHead(out.statusCode || 200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(out.body));
+        })
+        .catch(err => {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ ok: false, error: err.message }));
+        });
+      return;
+    }
+
+    let rawBody = '';
+    req.on('data', chunk => { rawBody += chunk; });
+    req.on('end', async () => {
+      try {
+        let payload = {};
+        const ct = String(req.headers['content-type'] || '');
+        if (ct.includes('application/json')) {
+          payload = rawBody ? JSON.parse(rawBody) : {};
+        } else {
+          new URLSearchParams(rawBody).forEach((v, k) => { payload[k] = v; });
+        }
+        const out = await handleServerlessCardWebhook(payload, {
+          databaseURL: DB_URL,
+          databaseSecret: DB_SECRET
+        });
+        res.writeHead(out.statusCode || 200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(out.body));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+  });
+
+  server.listen(PORT, () => {
+    console.log(`[KEYNOVA napthe.js] GachTheFast.com Webhook Server đang chạy tại http://0.0.0.0:${PORT}`);
+  });
+}
