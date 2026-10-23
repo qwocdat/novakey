@@ -1749,6 +1749,67 @@ h1 span,.gradient-text{
   object-fit:contain;
   border:2px solid rgba(112,240,237,.45);
 }
+.order-qr-showcase{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:18px 16px;
+  border-radius:18px;
+  background:linear-gradient(160deg,rgba(8,14,27,.96),rgba(13,22,40,.95));
+  border:1.5px solid rgba(112,240,237,.38);
+  box-shadow:0 18px 46px rgba(0,0,0,.45);
+  margin:12px 0;
+}
+.order-qr-large{
+  width:min(252px,76vw)!important;
+  height:min(252px,76vw)!important;
+  max-width:252px;
+  max-height:252px;
+  border-radius:18px;
+  background:#ffffff;
+  padding:10px;
+  object-fit:contain;
+  border:3px solid rgba(112,240,237,.65);
+  box-shadow:0 14px 36px rgba(0,0,0,.5);
+  margin:8px auto 12px;
+  display:block;
+}
+.order-qr-meta{
+  width:100%;
+  text-align:left;
+  background:rgba(255,255,255,.035);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  padding:12px 14px;
+  font-size:12px;
+  line-height:1.9;
+}
+.webhook-wait-banner{
+  width:100%;
+  margin-top:12px;
+  padding:11px 13px;
+  border-radius:13px;
+  background:rgba(112,240,237,.09);
+  border:1px solid rgba(112,240,237,.32);
+  color:#d9f8ff;
+  font-size:11px;
+  line-height:1.55;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  text-align:left;
+}
+.webhook-spinner{
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  border:2.5px solid rgba(112,240,237,.28);
+  border-top-color:var(--cyan);
+  animation:loaderSpin .8s linear infinite;
+  flex-shrink:0;
+}
 .tx-list{
   display:grid;
   gap:10px;
@@ -2868,13 +2929,13 @@ h1 span,.gradient-text{
   </section>
 </div>
 
-<!-- Order Request Modal (Auto-Generates QR Code Directly For Selected Product) -->
+<!-- Order Request Modal (Smart 2-Step: Select Plan -> Auto Balance Confirm OR Generate Large QR & Wait Webhook Auto Key) -->
 <div class="modal-backdrop" id="orderBackdrop">
   <section class="modal glass" role="dialog" aria-modal="true" aria-labelledby="orderTitle">
     <div class="modal-head">
       <div>
-        <h3 id="orderTitle">Mua sản phẩm &amp; Nhận key</h3>
-        <p id="orderIntro">Mã QR thanh toán được tạo tự động theo đúng sản phẩm, gói hạn và tên tài khoản của bạn.</p>
+        <h3 id="orderTitle">Mua sản phẩm &amp; Nhận key tự động</h3>
+        <p id="orderIntro">Chọn thời hạn key (ngày / tuần / tháng). Nếu đủ số dư sẽ xác nhận cấp key ngay; nếu chưa đủ sẽ tạo mã QR chờ thanh toán và tự động xuất key.</p>
       </div>
       <button type="button" class="close-modal" id="closeOrder" aria-label="Đóng">
         <svg viewBox="0 0 24 24" class="svg-ico"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -2884,53 +2945,70 @@ h1 span,.gradient-text{
       <input type="hidden" id="orderType" value="paid">
       <input type="hidden" id="orderProductId">
       <input type="hidden" id="orderOfferId">
-      <div class="field"><label for="orderProduct">SẢN PHẨM ĐANG CHỌN</label><select id="orderProduct" required></select></div>
-      <div class="field"><label for="orderPlan">THỜI HẠN KEY</label><select id="orderPlan" required></select></div>
-      <div class="order-summary"><span id="orderSummaryName">Gói key</span><strong id="orderSummaryPrice" style="color:var(--cyan);font-size:16px">0đ</strong></div>
+      <div id="orderStepSelectWrap">
+        <div class="field"><label for="orderProduct">SẢN PHẨM ĐANG CHỌN</label><select id="orderProduct" required></select></div>
+        <div class="field"><label for="orderPlan">CHỌN THỜI HẠN KEY (NGÀY / TUẦN / THÁNG / VĨNH VIỄN)</label><select id="orderPlan" required></select></div>
+      </div>
+
+      <div class="order-summary" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <span id="orderSummaryName" style="font-weight:800;font-size:13px">Gói key</span>
+          <strong id="orderSummaryPrice" style="color:var(--cyan);font-size:18px;font-weight:900">0 ₫</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:11px;padding-top:8px;border-top:1px solid rgba(255,255,255,.07)">
+          <span class="muted" id="orderWalletHint">Số dư tài khoản hiện có: <strong style="color:var(--green)">0 ₫</strong></span>
+          <span id="orderVaultStockBadge" class="pill pill-green" style="font-size:9px;padding:3px 8px">Kho key tự động 24/7</span>
+        </div>
+      </div>
+
       <div id="orderProductDownloadWrap"></div>
 
-      <!-- Auto-generated Product QR Box (Visible Immediately When Buying Any Product) -->
-      <div id="paymentPanel" class="bank-info-box">
-        <div>
-          <strong style="display:block;margin-bottom:4px;color:var(--cyan);font-size:12px" id="paymentProductHeader">MÃ QR THANH TOÁN SẢN PHẨM NÀY</strong>
+      <!-- Hộp xác nhận khi số dư đủ sẵn -->
+      <div id="orderBalanceEnoughBox" class="hidden" style="margin:12px 0;padding:14px 15px;border-radius:15px;background:rgba(135,245,178,.09);border:1px solid rgba(135,245,178,.35)">
+        <div style="font-size:11px;font-weight:900;color:var(--green);letter-spacing:.06em;margin-bottom:5px">✓ SỐ DƯ ĐỦ ĐỂ MUA &amp; NHẬN KEY NGAY</div>
+        <div id="orderBalanceConfirmText" style="font-size:12px;color:#e9fff2;line-height:1.6">Số dư hiện tại của bạn đủ để thanh toán gói này. Bấm xác nhận bên dưới để trừ số dư và nhận key từ Firebase ngay lập tức!</div>
+      </div>
+
+      <!-- Khung Mã QR VietQR ACB ONE cỡ lớn (Chỉ hiện sau khi chọn gói và bấm Tạo mã QR thanh toán) -->
+      <div id="paymentPanel" class="order-qr-showcase hidden">
+        <strong style="display:block;color:var(--cyan);font-size:13px;letter-spacing:.04em" id="paymentProductHeader">MÃ QR THANH TOÁN ĐƠN HÀNG</strong>
+        <small style="color:var(--muted);font-size:11px;margin-top:3px">Quét mã bằng ứng dụng ngân hàng hoặc MoMo / ZaloPay</small>
+        <img id="paymentQr" class="order-qr-large" alt="QR thanh toán sản phẩm ACB ONE">
+        <div class="order-qr-meta">
           <div><span class="muted">Ngân hàng:</span> <strong>ACB ONE (Ngân hàng Á Châu)</strong></div>
           <div>
             <span class="muted">Số tài khoản:</span>
-            <strong class="allow-select" style="color:var(--cyan)">28233851</strong>
-            <button type="button" class="btn btn-secondary" style="padding:2px 7px;font-size:9px;margin-left:4px" id="copyOrderBankBtn">Sao chép</button>
+            <strong class="allow-select" style="color:var(--cyan);font-size:13px">28233851</strong>
+            <button type="button" class="btn btn-secondary" style="padding:3px 9px;font-size:10px;margin-left:6px" id="copyOrderBankBtn">Sao chép</button>
           </div>
-          <div><span class="muted">Chủ TK:</span> <strong class="allow-select">NGUYEN DAI QUOC DAT</strong></div>
-          <div><span class="muted">Số tiền:</span> <strong class="allow-select" id="orderQrAmountText" style="color:var(--amber)">0đ</strong></div>
+          <div><span class="muted">Chủ tài khoản:</span> <strong class="allow-select">NGUYEN DAI QUOC DAT</strong></div>
+          <div><span class="muted">Số tiền cần chuyển:</span> <strong class="allow-select" id="orderQrAmountText" style="color:var(--amber);font-size:14px">0 ₫</strong></div>
           <div>
             <span class="muted">Nội dung CK (Tên TK):</span>
-            <strong class="allow-select" id="orderTransferSyntax" style="color:var(--green)">USER</strong>
-            <button type="button" class="btn btn-secondary" style="padding:2px 7px;font-size:9px;margin-left:4px" id="copyOrderSyntaxBtn">Sao chép</button>
+            <strong class="allow-select" id="orderTransferSyntax" style="color:var(--green);font-size:13px">USER</strong>
+            <button type="button" class="btn btn-secondary" style="padding:3px 9px;font-size:10px;margin-left:6px" id="copyOrderSyntaxBtn">Sao chép</button>
           </div>
-          <div id="paymentInstructions" style="font-size:10px;color:var(--muted);line-height:1.55;margin-top:4px"></div>
+          <div id="paymentInstructions" style="font-size:10px;color:var(--muted);line-height:1.5;margin-top:6px"></div>
         </div>
-        <div style="text-align:center">
-          <img id="paymentQr" class="bank-qr-frame" alt="QR thanh toán sản phẩm ACB ONE" style="width:132px;height:132px">
-          <small style="display:block;font-size:9px;color:var(--cyan);margin-top:4px;font-weight:800">QUÉT QR ĐỂ THANH TOÁN</small>
+        <div class="webhook-wait-banner" id="orderWebhookWaitBanner">
+          <div class="webhook-spinner"></div>
+          <div id="orderWebhookStatusText">
+            <strong>Đang chờ thanh toán Webhook…</strong><br>
+            Ngay khi chuyển khoản thành công, hệ thống tự động lấy số dư mua gói này và cấp key từ Firebase ngay lập tức!
+          </div>
         </div>
-      </div>
-
-      <div class="field" id="orderPayMethodWrap">
-        <label for="orderPayMethod">HÌNH THỨC THANH TOÁN ĐƠN NÀY</label>
-        <select id="orderPayMethod">
-          <option value="transfer" selected>Quét mã QR ACB ONE bên trên (Tự động đối soát theo tên tài khoản)</option>
-          <option value="wallet">Trừ số dư tài khoản hiện có (Nhận key tự động ngay nếu còn kho)</option>
-        </select>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;flex-wrap:wrap;gap:6px">
-          <small class="muted" id="orderWalletHint" style="font-size:10px">Số dư hiện tại: 0 ₫</small>
-          <button type="button" class="link-arrow" id="orderQuickTopupBtn" style="background:0;border:0;padding:0;font-size:10px">Nạp thêm số dư bằng thẻ cào</button>
+        <div style="display:flex;gap:8px;width:100%;margin-top:12px;flex-wrap:wrap">
+          <button type="button" class="btn btn-primary" id="checkWebhookAndBuyBtn" style="flex:1;min-width:170px">Tôi đã chuyển khoản · Kiểm tra &amp; Nhận key</button>
+          <button type="button" class="btn btn-secondary" id="changePlanBackBtn" style="padding:10px 14px">Đổi gói khác</button>
         </div>
       </div>
 
-      <div class="field"><label for="customerName">TÊN TÀI KHOẢN / HIỂN THỊ</label><input id="customerName" required maxlength="70" placeholder="Tên hiển thị"></div>
-      <div class="field"><label for="customerContact">THÔNG TIN LIÊN HỆ NHẬN HỖ TRỢ</label><input id="customerContact" required maxlength="120" placeholder="Zalo / Telegram / Facebook..."></div>
-      <div class="field"><label for="customerNote">GHI CHÚ (KHÔNG BẮT BUỘC)</label><textarea id="customerNote" maxlength="500" placeholder="Ví dụ: cần hỗ trợ cài đặt..."></textarea></div>
-      <p class="form-note" id="orderPaymentNote">Sau khi quét mã QR chuyển khoản đúng nội dung tên tài khoản hoặc trừ số dư, bấm nút bên dưới để hoàn tất đơn hàng.</p>
-      <button class="btn btn-primary" type="submit" id="submitOrder" style="width:100%;margin-top:8px">Xác nhận đặt mua sản phẩm</button>
+      <p class="form-note" id="orderPaymentNote" style="margin-top:10px">Chọn thời hạn key bên trên để hệ thống kiểm tra số dư hoặc tạo mã QR thanh toán.</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+        <small class="muted" style="font-size:10px">Thanh toán tự động 24/7 qua Webhook ACB ONE &amp; Thẻ cào</small>
+        <button type="button" class="link-arrow" id="orderQuickTopupBtn" style="background:0;border:0;padding:0;font-size:10px">Đổi thẻ cào sang số dư →</button>
+      </div>
+      <button class="btn btn-primary" type="submit" id="submitOrder" style="width:100%;margin-top:4px">Tạo mã QR thanh toán &amp; Chờ cấp key</button>
     </form>
     <div id="orderDone" class="hidden"></div>
   </section>
@@ -5900,12 +5978,40 @@ function renderMyOrders() {
   }));
 }
 
+function normalizeMapWithIds(rawMap) {
+  const out = {};
+  if (!rawMap || typeof rawMap !== 'object') return out;
+  for (const [k, v] of Object.entries(rawMap)) {
+    if (v && typeof v === 'object') {
+      out[k] = { ...v, id: v.id || k };
+    }
+  }
+  return out;
+}
+
+function sanitizeFirebasePayload(obj) {
+  if (obj === undefined) return null;
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeFirebasePayload);
+  const cleaned = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined) {
+      cleaned[k] = '';
+    } else if (v !== null && typeof v === 'object') {
+      cleaned[k] = sanitizeFirebasePayload(v);
+    } else {
+      cleaned[k] = v;
+    }
+  }
+  return cleaned;
+}
+
 function rerender() {
   renderSettings(store.settings || {});
-  categories = store.categories || {};
-  products = store.products || {};
-  plans = getEffectivePlansMap(store.keyPlans);
-  offers = store.freeOffers || {};
+  categories = normalizeMapWithIds(store.categories);
+  products = normalizeMapWithIds(store.products);
+  plans = normalizeMapWithIds(getEffectivePlansMap(store.keyPlans));
+  offers = normalizeMapWithIds(store.freeOffers);
   renderWebNotifications();
   renderCategories();
   renderProducts();
@@ -6246,7 +6352,45 @@ $('userLogoutBtn').addEventListener('click', async () => {
   }
 });
 
-/* Order Creation Flow + ACB ONE VietQR & Exact Account Name Content */
+/* Order Creation Flow + Smart Balance Confirmation & Large QR Webhook Auto Key Delivery */
+let activePendingOrderId = null;
+let activeQrGenerated = false;
+let autoFulfillLock = false;
+
+function countAvailableKeysForProductPlan(prodId, planId) {
+  if (!prodId || !productKeyVaultData || !productKeyVaultData[prodId]) return 0;
+  const localClaimed = getLocallyClaimedKeyIds();
+  const exactBucket = productKeyVaultData[prodId]?.[planId];
+  const exactCount = entries(exactBucket).filter(k => (k.status || 'available') === 'available' && !localClaimed[k.id]).length;
+  if (exactCount > 0) return exactCount;
+  let totalAny = 0;
+  for (const [, b] of Object.entries(productKeyVaultData[prodId] || {})) {
+    totalAny += entries(b).filter(k => (k.status || 'available') === 'available' && !localClaimed[k.id]).length;
+  }
+  return totalAny;
+}
+
+async function claimPaidKeyFromFirebaseVault(prodId, planId, uid, orderId = '') {
+  await fetchLatestVaultSnapshots();
+  const localClaimed = getLocallyClaimedKeyIds();
+  const prodBuckets = (prodId && productKeyVaultData?.[prodId]) ? productKeyVaultData[prodId] : {};
+  const candidatePlanIds = [...new Set([planId, ...Object.keys(prodBuckets)].filter(Boolean))];
+
+  for (const plKey of candidatePlanIds) {
+    const items = entries(prodBuckets[plKey]).filter(k => (k.status || 'available') === 'available' && !localClaimed[k.id]);
+    for (const item of items) {
+      const val = await tryClaimSingleVaultKey(`keyVault/${prodId}/${plKey}`, item, 'assigned', {
+        assignedUid: uid || '',
+        assignedOrderId: orderId || ''
+      });
+      if (val) {
+        return { key: val, keyId: item.id, planBucket: plKey };
+      }
+    }
+  }
+  return { key: null, keyId: null, planBucket: planId };
+}
+
 function populateOrderPlanOptionsForProduct(prodId, preferredPlanId = '') {
   const pPlans = getProductPlansList(prodId);
   const currentPlanId = preferredPlanId || $('orderPlan')?.value || '';
@@ -6281,50 +6425,289 @@ function updateDepositSyntax() {
   setText('orderTransferSyntax', exactAccountName);
 }
 
+function getSelectedOrderContext() {
+  const prodId = $('orderProduct')?.value || '';
+  const rawProd = products[prodId] || activeRows(products)[0] || {};
+  const finalProdId = prodId || rawProd.id || '';
+  const prodPlansMap = getProductPlansMap(finalProdId);
+  const selectedPlanVal = $('orderPlan')?.value || '';
+  const rawPlan = prodPlansMap[selectedPlanVal] || getProductPlansList(finalProdId)[0] || { id: '1d', label: '1 ngày', price: Number(rawProd.priceFrom) || 10000 };
+  const finalPlanId = rawPlan.id || selectedPlanVal || '1d';
+  const isFree = $('orderType')?.value === 'free';
+  const basePrice = (rawProd?.priceFrom != null && Number(rawProd.priceFrom) > 0 && (!rawPlan || Number(rawPlan.price) <= 0))
+    ? Number(rawProd.priceFrom)
+    : (Number(rawPlan?.price) || Number(rawProd?.priceFrom) || 0);
+  const price = isFree ? 0 : basePrice;
+  return {
+    prodId: finalProdId,
+    product: { ...rawProd, id: finalProdId },
+    planId: finalPlanId,
+    plan: { ...rawPlan, id: finalPlanId },
+    isFree,
+    price
+  };
+}
+
 function updateOrderSummary() {
-  const prodId = $('orderProduct').value;
-  const p = products[prodId];
-  const prodPlansMap = getProductPlansMap(prodId);
-  const pl = prodPlansMap[$('orderPlan').value] || getProductPlansList(prodId)[0];
-  const free = $('orderType').value === 'free';
-  const payMethod = $('orderPayMethod')?.value || 'transfer';
+  const { prodId, product: p, planId, plan: pl, isFree: free, price } = getSelectedOrderContext();
   const bal = currentBalance();
-  const basePrice = (p?.priceFrom != null && Number(p.priceFrom) > 0 && (!pl || Number(pl.price) <= 0))
-    ? Number(p.priceFrom)
-    : (Number(pl?.price) || Number(p?.priceFrom) || 0);
-  const price = free ? 0 : basePrice;
+  const enoughBalance = !free && bal >= price && price > 0;
+  const amountNeeded = free ? 0 : Math.max(0, price - bal);
+  const qrTransferAmount = amountNeeded > 0 ? amountNeeded : price;
 
   $('orderSummaryName').textContent = (p?.name || 'Sản phẩm') + ' · ' + (pl?.label || pl?.name || pl?.id || '');
   $('orderSummaryPrice').textContent = free ? 'MIỄN PHÍ' : fmt(price);
+
   if ($('orderProductDownloadWrap')) {
     $('orderProductDownloadWrap').innerHTML = renderProductDownloadBar(p, 'card');
   }
-  setText('paymentProductHeader', `MÃ QR THANH TOÁN: ${(p?.name || 'SẢN PHẨM').toUpperCase()}`);
-  setText('orderQrAmountText', free ? '0 ₫' : fmt(price));
-  $('orderPayMethodWrap')?.classList.toggle('hidden', free);
+
   if ($('orderWalletHint')) {
-    $('orderWalletHint').textContent = `Số dư tài khoản hiện có: ${fmt(bal)}`;
+    $('orderWalletHint').innerHTML = `Số dư tài khoản hiện có: <strong style="color:${enoughBalance ? 'var(--green)' : 'var(--cyan)'}">${fmt(bal)}</strong>`;
   }
 
-  $('orderPaymentNote').textContent = free
-    ? 'Yêu cầu key free sẽ được admin kiểm tra và giao key sau khi xác nhận nhiệm vụ.'
-    : payMethod === 'wallet'
-    ? 'Hệ thống sẽ trừ trực tiếp số dư tài khoản của bạn và tự động xuất key ngay nếu còn kho.'
-    : 'Quét mã QR ACB ONE (28233851 - NGUYEN DAI QUOC DAT) bên trên. Hệ thống tự động tạo QR theo đúng giá sản phẩm này và tên tài khoản của bạn.';
+  const availCount = countAvailableKeysForProductPlan(prodId, planId);
+  const stockBadge = $('orderVaultStockBadge');
+  if (stockBadge) {
+    if (availCount > 0) {
+      stockBadge.className = 'pill pill-green';
+      stockBadge.textContent = `Còn ${availCount} key sẵn sàng giao ngay`;
+    } else {
+      stockBadge.className = 'pill pill-blue';
+      stockBadge.textContent = 'Cấp key tự động từ Firebase';
+    }
+  }
+
+  setText('paymentProductHeader', `MÃ QR THANH TOÁN: ${(p?.name || 'SẢN PHẨM').toUpperCase()} (${(pl?.label || planId).toUpperCase()})`);
+  setText('orderQrAmountText', free ? '0 ₫' : fmt(qrTransferAmount));
 
   const settings = store.settings || {};
-  const instructions = settings.paymentInstructions || 'Quét mã QR để tự điền đúng số tiền sản phẩm và nội dung chuyển khoản là tên tài khoản của bạn.';
-  $('paymentInstructions').textContent = instructions;
-  // Always show the auto-generated QR box when buying a paid product!
-  $('paymentPanel').classList.toggle('hidden', free);
+  const instructions = settings.paymentInstructions || 'Quét mã QR để tự điền đúng số tiền và nội dung chuyển khoản là tên tài khoản của bạn.';
+  setText('paymentInstructions', instructions);
 
   const isReg = currentUser && !currentUser.isAnonymous;
   const exactAccountName = isReg ? getAccountTransferContent(currentUser, userProfileData) : 'KEYNOVA';
   setText('orderTransferSyntax', exactAccountName);
   const customQr = safeUrl(settings.paymentQrUrl || '');
-  const orderQrUrl = customQr || buildAcbVietQrUrl(price || 50000, exactAccountName);
-  if ($('paymentQr')) {
+  const orderQrUrl = customQr || buildAcbVietQrUrl(qrTransferAmount || 10000, exactAccountName);
+  if ($('paymentQr') && orderQrUrl) {
     $('paymentQr').src = orderQrUrl;
+  }
+
+  const enoughBox = $('orderBalanceEnoughBox');
+  const qrPanel = $('paymentPanel');
+  const submitBtn = $('submitOrder');
+  const noteEl = $('orderPaymentNote');
+
+  if (free) {
+    enoughBox?.classList.add('hidden');
+    qrPanel?.classList.add('hidden');
+    if (submitBtn) {
+      submitBtn.classList.remove('hidden');
+      submitBtn.textContent = 'Xác nhận nhận key miễn phí';
+    }
+    if (noteEl) noteEl.textContent = 'Hệ thống sẽ kiểm tra và cấp key ngay sau khi xác nhận.';
+    return;
+  }
+
+  // Nếu đang ở chế độ đã bấm tạo mã QR nhưng trong lúc chờ mà số dư đã đủ -> Tự động kích hoạt mua luôn!
+  if (activeQrGenerated && activePendingOrderId && enoughBalance) {
+    checkAndAutoFulfillPendingOrders();
+    return;
+  }
+
+  if (activeQrGenerated) {
+    enoughBox?.classList.add('hidden');
+    qrPanel?.classList.remove('hidden');
+    if (submitBtn) submitBtn.classList.add('hidden');
+    if (noteEl) {
+      noteEl.textContent = `Mã QR đã được tạo cho gói ${pl?.label || planId} (${fmt(qrTransferAmount)}). Hệ thống sẽ tự động lấy số dư mua và xuất key ngay khi Webhook báo tiền về!`;
+    }
+  } else if (enoughBalance) {
+    enoughBox?.classList.remove('hidden');
+    qrPanel?.classList.add('hidden');
+    const remain = Math.max(0, bal - price);
+    setText('orderBalanceConfirmText', `Số dư hiện có: ${fmt(bal)} · Giá gói ${pl?.label || planId}: ${fmt(price)} · Số dư còn lại sau khi mua: ${fmt(remain)}. Bấm nút xác nhận bên dưới để trừ số dư và nhận key ngay!`);
+    if (submitBtn) {
+      submitBtn.classList.remove('hidden');
+      submitBtn.textContent = `Xác nhận mua bằng số dư (-${fmt(price)}) & Nhận key ngay`;
+    }
+    if (noteEl) {
+      noteEl.textContent = 'Số dư tài khoản của bạn đã đủ. Chỉ cần bấm xác nhận để hệ thống xuất key từ kho Firebase ngay lập tức.';
+    }
+  } else {
+    enoughBox?.classList.add('hidden');
+    qrPanel?.classList.add('hidden');
+    if (submitBtn) {
+      submitBtn.classList.remove('hidden');
+      submitBtn.textContent = `Tạo mã QR thanh toán gói ${pl?.label || planId} (${fmt(qrTransferAmount)})`;
+    }
+    if (noteEl) {
+      noteEl.textContent = bal > 0
+        ? `Số dư hiện có ${fmt(bal)}, cần thanh toán thêm ${fmt(qrTransferAmount)}. Bấm nút bên dưới để tạo mã QR và chờ hệ thống tự động cấp key.`
+        : `Chọn thời hạn key bạn muốn mua rồi bấm nút bên dưới để tạo mã QR thanh toán (${fmt(price)}).`;
+    }
+  }
+}
+
+function renderOrderDeliveredView(orderObj, overrideKey = null) {
+  if (!$('orderDone') || !$('orderForm')) return;
+  const finalKey = overrideKey || orderObj?.key || '';
+  const prodObj = products[orderObj?.productId] || orderObj || {};
+  activeQrGenerated = false;
+  activePendingOrderId = null;
+  $('orderForm').classList.add('hidden');
+  $('orderDone').classList.remove('hidden');
+  $('orderDone').innerHTML = `
+    <div class="order-summary" style="flex-direction:column;align-items:flex-start;gap:6px">
+      <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
+        <span class="muted">Sản phẩm &amp; Gói hạn</span>
+        <strong>${esc(orderObj?.productName || prodObj?.name || 'Sản phẩm')} · ${esc(orderObj?.planLabel || orderObj?.planId || '')}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
+        <span class="muted">Mã đơn hàng</span>
+        <strong class="allow-select" style="color:var(--cyan)">${esc(orderObj?.id || 'Đơn mới')}</strong>
+      </div>
+    </div>
+    ${finalKey ? `
+      <div style="margin:14px 0;padding:16px;border-radius:16px;background:rgba(135,245,178,.1);border:1.5px solid rgba(135,245,178,.42);text-align:center">
+        <div style="font-size:11px;font-weight:900;color:var(--green);letter-spacing:.1em;margin-bottom:8px">✓ KEY CỦA BẠN ĐÃ ĐƯỢC CẤP TỰ ĐỘNG TỪ FIREBASE</div>
+        <code class="allow-select" style="font-size:15px;font-weight:900;color:#fff;word-break:break-all;display:block;padding:10px;border-radius:10px;background:rgba(0,0,0,.38);border:1px solid rgba(255,255,255,.1)">${esc(finalKey)}</code>
+        <button type="button" class="btn btn-primary small-btn" id="copyDeliveredKeyModalBtn" style="margin-top:10px;width:100%">Sao chép Key ngay</button>
+      </div>
+    ` : `
+      <div class="empty-state" style="margin:14px 0">Đã xác nhận thanh toán thành công! Kho key của gói này hiện đang được cập nhật thêm, key sẽ hiển thị trong mục Đơn của tôi ngay khi sẵn sàng.</div>
+    `}
+    ${renderProductDownloadBar(prodObj, 'card')}
+    <button type="button" class="btn btn-secondary" id="doneClose" style="width:100%;margin-top:8px">Đóng cửa sổ</button>
+  `;
+  $('copyDeliveredKeyModalBtn')?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(finalKey);
+      toast('Đã sao chép Key vào bộ nhớ tạm!');
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = finalKey;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      toast('Đã sao chép Key!');
+    }
+  });
+  $('doneClose')?.addEventListener('click', closeOrder);
+}
+
+async function checkAndAutoFulfillPendingOrders() {
+  if (autoFulfillLock || !currentUser || currentUser.isAnonymous) return;
+  const uid = currentUser.uid;
+
+  // 1. Nếu đơn đang chờ (`activePendingOrderId`) đã được `bank.js` chuyển sang `delivered` hoặc `paid` trên Firebase
+  if (activePendingOrderId && myOrders[activePendingOrderId]) {
+    const activeOrd = { ...myOrders[activePendingOrderId], id: activePendingOrderId };
+    if (activeOrd.status === 'delivered' && activeOrd.key) {
+      if ($('orderBackdrop')?.classList.contains('open')) {
+        renderOrderDeliveredView(activeOrd, activeOrd.key);
+        toast('Thanh toán thành công! Đã tự động cấp key từ Firebase.');
+      }
+      return;
+    }
+    if (activeOrd.status === 'paid' && !activeOrd.key) {
+      autoFulfillLock = true;
+      try {
+        const claimed = await claimPaidKeyFromFirebaseVault(activeOrd.productId, activeOrd.planId, uid, activePendingOrderId);
+        if (claimed.key) {
+          await update(ref(db, `orders/${uid}/${activePendingOrderId}`), sanitizeFirebasePayload({
+            status: 'delivered',
+            key: claimed.key,
+            keyId: claimed.keyId || '',
+            deliveredAt: Date.now(),
+            updatedAt: Date.now()
+          }));
+          activeOrd.key = claimed.key;
+          activeOrd.status = 'delivered';
+        }
+        if ($('orderBackdrop')?.classList.contains('open')) {
+          renderOrderDeliveredView(activeOrd, claimed.key);
+          toast(claimed.key ? 'Thanh toán thành công! Đã tự động cấp key từ Firebase.' : 'Đã xác nhận thanh toán thành công!');
+        }
+      } catch (e) {
+        console.warn('Auto key attach notice:', e);
+      } finally {
+        autoFulfillLock = false;
+      }
+      return;
+    }
+  }
+
+  // 2. Kiểm tra nếu số dư hiện tại đủ mua đơn `pending` (khi Webhook vừa cộng tiền vào `users/{uid}/balance`)
+  const bal = currentBalance();
+  if (bal <= 0) return;
+
+  const pendingList = entries(myOrders)
+    .filter(o => o && o.status === 'pending' && Number(o.price) > 0 && bal >= Number(o.price))
+    .sort((a, b) => {
+      if (a.id === activePendingOrderId) return -1;
+      if (b.id === activePendingOrderId) return 1;
+      return (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0);
+    });
+
+  if (!pendingList.length) return;
+
+  autoFulfillLock = true;
+  try {
+    const targetOrd = pendingList[0];
+    const ordId = targetOrd.id;
+    const ordPrice = Number(targetOrd.price) || 0;
+
+    const statusRef = ref(db, `orders/${uid}/${ordId}/status`);
+    const lockTx = await runTransaction(statusRef, cur => (cur === 'pending' || !cur) ? 'processing' : undefined, { applyLocally: false });
+    if (!lockTx.committed) return;
+
+    const balRef = ref(db, `users/${uid}/balance`);
+    const deductTx = await runTransaction(balRef, cur => {
+      const c = Number(cur) || 0;
+      if (c < ordPrice) return;
+      return c - ordPrice;
+    });
+
+    if (!deductTx.committed) {
+      await update(ref(db, `orders/${uid}/${ordId}`), { status: 'pending' });
+      return;
+    }
+
+    const claimed = await claimPaidKeyFromFirebaseVault(targetOrd.productId, targetOrd.planId, uid, ordId);
+    const finalStatus = claimed.key ? 'delivered' : 'paid';
+    const updatedFields = sanitizeFirebasePayload({
+      status: finalStatus,
+      payMethod: 'wallet_auto_webhook',
+      key: claimed.key || '',
+      keyId: claimed.keyId || '',
+      paidAt: Date.now(),
+      deliveredAt: claimed.key ? Date.now() : '',
+      updatedAt: Date.now()
+    });
+    await update(ref(db, `orders/${uid}/${ordId}`), updatedFields);
+
+    const txRef = push(ref(db, `transactions/${uid}`));
+    await set(txRef, sanitizeFirebasePayload({
+      type: 'wallet_purchase',
+      title: `Tự động mua ${targetOrd.productName || 'Sản phẩm'} (${targetOrd.planLabel || targetOrd.planId})`,
+      amount: -ordPrice,
+      detail: claimed.key ? `Đã xuất key tự động: ${claimed.key}` : `Đã thanh toán đơn #${ordId}`,
+      status: finalStatus === 'delivered' ? 'completed' : 'pending',
+      userEmail: currentUser.email || '',
+      createdAt: Date.now()
+    }));
+
+    if ($('orderBackdrop')?.classList.contains('open')) {
+      renderOrderDeliveredView({ ...targetOrd, ...updatedFields, id: ordId }, claimed.key);
+    }
+    toast(claimed.key ? 'Đã tự động trừ số dư và cấp key từ Firebase!' : 'Đã tự động thanh toán đơn hàng từ số dư!');
+  } catch (err) {
+    console.warn('Auto fulfill error:', err);
+  } finally {
+    autoFulfillLock = false;
   }
 }
 
@@ -6339,8 +6722,44 @@ $('copyOrderSyntaxBtn')?.addEventListener('click', async () => {
   toast('Đã sao chép nội dung chuyển khoản: ' + txt);
 });
 
+$('changePlanBackBtn')?.addEventListener('click', () => {
+  activeQrGenerated = false;
+  $('orderStepSelectWrap')?.classList.remove('hidden');
+  updateOrderSummary();
+});
+
+$('checkWebhookAndBuyBtn')?.addEventListener('click', async () => {
+  const btn = $('checkWebhookAndBuyBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Đang kiểm tra số dư & kho key…';
+  }
+  try {
+    if (currentUser && !currentUser.isAnonymous) {
+      const [uSnap, oSnap] = await Promise.all([
+        get(ref(db, `users/${currentUser.uid}`)).catch(() => null),
+        get(ref(db, `orders/${currentUser.uid}`)).catch(() => null)
+      ]);
+      if (uSnap && uSnap.val()) userProfileData = uSnap.val();
+      if (oSnap && oSnap.val()) myOrders = oSnap.val();
+      await checkAndAutoFulfillPendingOrders();
+      if (activeQrGenerated) {
+        const { price } = getSelectedOrderContext();
+        const bal = currentBalance();
+        if (bal < price) {
+          toast(`Hiện số dư là ${fmt(bal)} (Cần ${fmt(price)}). Hệ thống vẫn đang tự động chờ Webhook ngân hàng báo về!`);
+        }
+      }
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Tôi đã chuyển khoản · Kiểm tra & Nhận key';
+    }
+  }
+});
+
 function openOrder(productId = '', type = 'paid', planId = '', offerId = '') {
-  // Bắt buộc phải có tài khoản đã đăng nhập mới được mua sản phẩm
   if (!currentUser || currentUser.isAnonymous) {
     toast('Bạn cần đăng nhập hoặc tạo tài khoản trước khi mua sản phẩm!');
     openAuthModal();
@@ -6350,30 +6769,35 @@ function openOrder(productId = '', type = 'paid', planId = '', offerId = '') {
     toast('Shop chưa cấu hình sản phẩm hoặc bảng giá.');
     return;
   }
+  activeQrGenerated = false;
+  activePendingOrderId = null;
+  $('orderStepSelectWrap')?.classList.remove('hidden');
   $('orderForm').classList.remove('hidden');
   $('orderDone').classList.add('hidden');
   $('orderForm').reset();
-  if ($('orderPayMethod')) $('orderPayMethod').value = 'transfer';
-  const exactAccountName = getAccountTransferContent(currentUser, userProfileData);
-  $('customerName').value = userProfileData?.displayName || currentUser.displayName || exactAccountName;
-  if (userProfileData?.contactPhone) $('customerContact').value = userProfileData.contactPhone;
 
   $('orderType').value = type;
   $('orderOfferId').value = offerId || '';
   const selectedProd = products[productId] || activeRows(products)[0];
+  const resolvedProdId = productId || selectedProd?.id || '';
   setText('orderTitle', type === 'free' ? 'Nhận key miễn phí' : `Mua: ${selectedProd?.name || 'Sản phẩm'}`);
-  setText('orderIntro', type === 'free' ? 'Gửi yêu cầu sau khi hoàn thành link nhiệm vụ.' : `Mã QR thanh toán cho "${selectedProd?.name || 'sản phẩm'}" đã được tạo tự động bên dưới.`);
-  populateOrderSelectors(selectedProd?.id || productId, planId);
+  setText('orderIntro', type === 'free'
+    ? 'Xác nhận nhận key miễn phí sau khi hoàn thành nhiệm vụ.'
+    : 'Chọn thời hạn key (ngày / tuần / tháng). Nếu đủ số dư sẽ hỏi xác nhận và cấp key ngay; nếu chưa đủ sẽ tạo mã QR chờ thanh toán.');
+  populateOrderSelectors(resolvedProdId, planId);
   $('orderProduct').disabled = type === 'free';
   $('orderPlan').disabled = type === 'free';
   $('orderBackdrop').classList.add('open');
   syncModalBodyClass();
+  fetchLatestVaultSnapshots().then(() => updateOrderSummary());
 }
 
 function closeOrder() {
+  activeQrGenerated = false;
   $('orderBackdrop').classList.remove('open');
   $('orderProduct').disabled = false;
   $('orderPlan').disabled = false;
+  $('orderStepSelectWrap')?.classList.remove('hidden');
   syncModalBodyClass();
 }
 
@@ -6382,6 +6806,7 @@ $('orderBackdrop').addEventListener('click', e => {
   if (e.target === $('orderBackdrop')) closeOrder();
 });
 $('orderProduct').addEventListener('change', () => {
+  activeQrGenerated = false;
   const newProdId = $('orderProduct').value;
   const prodObj = products[newProdId];
   if (prodObj && $('orderType').value !== 'free') {
@@ -6390,8 +6815,10 @@ $('orderProduct').addEventListener('change', () => {
   populateOrderPlanOptionsForProduct(newProdId, $('orderPlan').value);
   updateOrderSummary();
 });
-$('orderPlan').addEventListener('change', updateOrderSummary);
-$('orderPayMethod')?.addEventListener('change', updateOrderSummary);
+$('orderPlan').addEventListener('change', () => {
+  activeQrGenerated = false;
+  updateOrderSummary();
+});
 $('orderQuickTopupBtn')?.addEventListener('click', () => {
   closeOrder();
   switchOrdersSubtab('walletDeposit');
@@ -6406,133 +6833,132 @@ $('orderForm').addEventListener('submit', async e => {
   e.preventDefault();
   const btn = $('submitOrder');
   btn.disabled = true;
+  const originalText = btn.textContent;
   btn.textContent = 'Đang xử lý…';
   try {
     let user = auth.currentUser;
-    if (!user) {
-      const cred = await signInAnonymously(auth);
-      user = cred.user;
+    if (!user || user.isAnonymous) {
+      toast('Vui lòng đăng nhập tài khoản trước khi mua key!');
+      openAuthModal();
+      return;
     }
-    const prodId = $('orderProduct').value;
-    const product = products[prodId];
-    const plan = getProductPlansMap(prodId)[$('orderPlan').value];
-    if (!product || !plan) throw new Error('Sản phẩm hoặc gói key đã thay đổi, hãy chọn lại.');
-    const isFree = $('orderType').value === 'free';
-    const price = isFree ? 0 : (Number(plan.price) || 0);
-    const payMethod = isFree ? 'free' : ($('orderPayMethod')?.value || 'wallet');
-    const cName = $('customerName').value.trim();
-    const cContact = $('customerContact').value.trim();
-    if (!cName || !cContact) throw new Error('Vui lòng nhập tên và thông tin liên hệ.');
 
-    let orderStatus = 'pending';
-    let deliveredKey = null;
-    let deliveredKeyId = null;
+    const { prodId, product, planId, plan, isFree, price } = getSelectedOrderContext();
+    if (!prodId || !product || !plan) {
+      throw new Error('Sản phẩm hoặc gói thời hạn key không hợp lệ, vui lòng chọn lại.');
+    }
 
-    if (!isFree && payMethod === 'wallet') {
-      if (user.isAnonymous) {
-        throw new Error('Vui lòng đăng nhập tài khoản để thanh toán bằng số dư ví.');
-      }
-      const bal = currentBalance();
-      if (bal < price) {
-        throw new Error(`Số dư ví không đủ (${fmt(bal)}). Vui lòng nạp thêm ${fmt(price - bal)} hoặc chọn Chuyển khoản ACB ONE.`);
-      }
-      const balRef = ref(db, `users/${user.uid}/balance`);
-      const txBal = await runTransaction(balRef, cur => {
-        const c = Number(cur) || 0;
-        if (c < price) return;
-        return c - price;
-      });
-      if (!txBal.committed) {
-        throw new Error('Số dư không đủ để thực hiện giao dịch.');
-      }
-      orderStatus = 'paid';
+    const exactAccountName = getAccountTransferContent(user, userProfileData);
+    const dispName = userProfileData?.displayName || user.displayName || exactAccountName;
+    const contactInfo = userProfileData?.contactPhone || user.email || exactAccountName;
+    const bal = currentBalance();
 
-      try {
-        const vaultSnap = await get(ref(db, `keyVault/${product.id}/${plan.id}`));
-        const vaultItems = entries(vaultSnap.val()).filter(k => (k.status || 'available') === 'available');
-        for (const candidate of vaultItems) {
-          const stRef = ref(db, `keyVault/${product.id}/${plan.id}/${candidate.id}/status`);
-          const claimTx = await runTransaction(stRef, cur => cur === 'available' ? 'assigned' : undefined, {applyLocally: false});
-          if (claimTx.committed) {
-            deliveredKey = candidate.value;
-            deliveredKeyId = candidate.id;
-            orderStatus = 'delivered';
-            await update(ref(db, `keyVault/${product.id}/${plan.id}/${candidate.id}`), {
-              assignedUid: user.uid,
-              assignedAt: Date.now()
-            });
-            break;
-          }
+    // NHÁNH 1: Số dư đủ sẵn (hoặc gói miễn phí) -> Đã hỏi xác nhận trên hộp thoại -> Trừ số dư & Cấp key từ Firebase luôn!
+    if (isFree || bal >= price) {
+      if (!isFree && price > 0) {
+        const balRef = ref(db, `users/${user.uid}/balance`);
+        const txBal = await runTransaction(balRef, cur => {
+          const c = Number(cur) || 0;
+          if (c < price) return;
+          return c - price;
+        });
+        if (!txBal.committed) {
+          throw new Error('Số dư hiện tại không đủ để thực hiện giao dịch.');
         }
-      } catch (vErr) {
-        console.warn('Auto key claim notice:', vErr);
       }
+
+      const r = push(ref(db, `orders/${user.uid}`));
+      const newOrderId = r.key;
+      const claimed = await claimPaidKeyFromFirebaseVault(prodId, planId, user.uid, newOrderId);
+      const orderStatus = claimed.key ? 'delivered' : (isFree ? 'pending' : 'paid');
+
+      const orderPayload = sanitizeFirebasePayload({
+        type: isFree ? 'free' : 'paid',
+        payMethod: isFree ? 'free' : 'wallet',
+        uid: user.uid,
+        accountName: exactAccountName,
+        userEmail: user.email || '',
+        productId: String(prodId),
+        productName: String(product.name || 'Sản phẩm'),
+        downloadUrl: String(product.downloadUrl || ''),
+        downloadBackupUrl: String(product.downloadBackupUrl || ''),
+        downloadButtonText: String(product.downloadButtonText || 'Tải sản phẩm'),
+        downloadVersion: String(product.downloadVersion || ''),
+        planId: String(planId),
+        planLabel: String(plan.label || plan.name || planId),
+        price: Number(price) || 0,
+        offerId: String($('orderOfferId')?.value || ''),
+        customerName: String(dispName),
+        contact: String(contactInfo),
+        note: 'Mua trực tiếp bằng số dư tài khoản',
+        status: orderStatus,
+        key: claimed.key || '',
+        keyId: claimed.keyId || '',
+        paidAt: Date.now(),
+        deliveredAt: claimed.key ? Date.now() : '',
+        createdAt: Date.now()
+      });
+
+      await set(r, orderPayload);
+
+      const txRef = push(ref(db, `transactions/${user.uid}`));
+      await set(txRef, sanitizeFirebasePayload({
+        type: isFree ? 'free_order' : 'wallet_purchase',
+        title: `Mua ${product.name || 'Sản phẩm'} (${plan.label || planId})`,
+        amount: isFree ? 0 : -price,
+        detail: claimed.key ? `Đã nhận key tự động: ${claimed.key}` : `Mã đơn: ${newOrderId} (Đã trừ số dư · Chờ bổ sung key)`,
+        status: orderStatus === 'delivered' ? 'completed' : 'pending',
+        userEmail: user.email || '',
+        createdAt: Date.now()
+      }));
+
+      renderOrderDeliveredView({ ...orderPayload, id: newOrderId }, claimed.key);
+      toast(claimed.key ? 'Mua key thành công! Đã cấp key tự động từ Firebase.' : 'Đã thanh toán bằng số dư thành công!');
+      return;
     }
 
+    // NHÁNH 2: Số dư chưa đủ -> Người dùng vừa chọn gói hạn (ngày / tháng) và bấm Tạo Mã QR -> Tạo đơn pending & Hiện QR lớn chờ Webhook
     const r = push(ref(db, `orders/${user.uid}`));
-    const order = {
-      type: isFree ? 'free' : 'paid',
-      payMethod,
+    const pendingOrderId = r.key;
+    const pendingOrderPayload = sanitizeFirebasePayload({
+      type: 'paid',
+      payMethod: 'transfer',
       uid: user.uid,
-      accountName: getAccountTransferContent(user, userProfileData),
+      accountName: exactAccountName,
       userEmail: user.email || '',
-      productId: product.id,
-      productName: product.name || '',
-      downloadUrl: product.downloadUrl || '',
-      downloadBackupUrl: product.downloadBackupUrl || '',
-      downloadButtonText: product.downloadButtonText || 'Tải sản phẩm',
-      downloadVersion: product.downloadVersion || '',
-      planId: plan.id,
-      planLabel: plan.label || plan.name || plan.id,
-      price,
-      offerId: $('orderOfferId').value || '',
-      customerName: cName,
-      contact: cContact,
-      note: $('customerNote').value.trim(),
-      status: orderStatus,
-      key: deliveredKey,
-      keyId: deliveredKeyId,
-      createdAt: Date.now()
-    };
-    await set(r, order);
-
-    const txRef = push(ref(db, `transactions/${user.uid}`));
-    await set(txRef, {
-      type: isFree ? 'free_order' : (payMethod === 'wallet' ? 'wallet_purchase' : 'bank_order'),
-      title: `Mua ${product.name || 'Sản phẩm'} (${plan.label || plan.id})`,
-      amount: payMethod === 'wallet' ? -price : 0,
-      detail: deliveredKey ? `Đã nhận key: ${deliveredKey}` : `Mã đơn: ${r.key} (${orderStatus === 'paid' ? 'Đã trừ ví · Chờ cấp key' : 'Chờ xử lý'})`,
-      status: orderStatus === 'delivered' ? 'completed' : 'pending',
-      userEmail: user.email || '',
+      productId: String(prodId),
+      productName: String(product.name || 'Sản phẩm'),
+      downloadUrl: String(product.downloadUrl || ''),
+      downloadBackupUrl: String(product.downloadBackupUrl || ''),
+      downloadButtonText: String(product.downloadButtonText || 'Tải sản phẩm'),
+      downloadVersion: String(product.downloadVersion || ''),
+      planId: String(planId),
+      planLabel: String(plan.label || plan.name || planId),
+      price: Number(price) || 0,
+      offerId: '',
+      customerName: String(dispName),
+      contact: String(contactInfo),
+      note: `Tạo mã QR chờ thanh toán gói ${plan.label || planId}`,
+      status: 'pending',
+      key: '',
+      keyId: '',
       createdAt: Date.now()
     });
 
-    $('orderForm').classList.add('hidden');
-    $('orderDone').classList.remove('hidden');
-    $('orderDone').innerHTML = `
-      <div class="order-summary">
-        <span>Mã đơn của bạn</span>
-        <strong class="allow-select" style="word-break:break-all">${esc(r.key)}</strong>
-      </div>
-      ${deliveredKey ? `
-        <div style="margin:14px 0;padding:14px;border-radius:14px;background:rgba(135,245,178,.08);border:1px solid rgba(135,245,178,.32)">
-          <div style="font-size:10px;font-weight:900;color:var(--green);letter-spacing:.1em;margin-bottom:6px">KEY CỦA BẠN ĐÃ ĐƯỢC XUẤT TỰ ĐỘNG</div>
-          <code class="allow-select" style="font-size:13px;font-weight:800;color:#fff;word-break:break-all;display:block">${esc(deliveredKey)}</code>
-        </div>
-      ` : `
-        <div class="empty-state" style="margin-bottom:15px">${orderStatus === 'paid' ? 'Đã thanh toán bằng số dư ví thành công! Kho key hiện đang cập nhật, Admin sẽ gửi key vào đơn này sớm nhất.' : 'Đã gửi yêu cầu thành công. Key sẽ xuất hiện tại mục Đơn của tôi ngay sau khi Admin xử lý.'}</div>
-      `}
-      ${renderProductDownloadBar(product, 'card')}
-      <button type="button" class="btn btn-primary" id="doneClose" style="width:100%">Đã hiểu</button>
-    `;
-    $('doneClose').addEventListener('click', closeOrder);
-    toast(deliveredKey ? 'Mua key thành công! Đã nhận key tự động.' : 'Đã gửi đơn hàng thành công!');
+    await set(r, pendingOrderPayload);
+    activePendingOrderId = pendingOrderId;
+    activeQrGenerated = true;
+    updateOrderSummary();
+    toast(`Đã tạo mã QR cho gói ${plan.label || planId} (${fmt(Math.max(0, price - bal))}). Quét mã để hệ thống tự động cấp key!`);
   } catch (err) {
     console.error(err);
-    toast(err?.message || 'Gửi đơn thất bại.');
+    toast(err?.message || 'Không thể xử lý đơn hàng.');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Xác nhận gửi yêu cầu';
+    if (!activeQrGenerated) {
+      btn.textContent = originalText;
+      updateOrderSummary();
+    }
   }
 });
 
@@ -6764,6 +7190,7 @@ onAuthStateChanged(auth, async user => {
     ordersUnsubscribe = onValue(ref(db, `orders/${user.uid}`), snap => {
       myOrders = snap.val() || {};
       renderMyOrders();
+      checkAndAutoFulfillPendingOrders();
     }, err => console.warn(err));
 
     if (userUnsubscribe) userUnsubscribe();
@@ -6772,11 +7199,9 @@ onAuthStateChanged(auth, async user => {
       if (userProfileData.contactPhone && $('editProfilePhone') && !$('editProfilePhone').value) {
         $('editProfilePhone').value = userProfileData.contactPhone;
       }
-      if (userProfileData.contactPhone && $('customerContact') && !$('customerContact').value) {
-        $('customerContact').value = userProfileData.contactPhone;
-      }
       renderWalletAndTransactions();
       updateOrderSummary();
+      checkAndAutoFulfillPendingOrders();
     }, err => console.warn(err));
 
     if (depositsUnsubscribe) depositsUnsubscribe();
