@@ -10,6 +10,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad&render=explicit" async defer></script>
+<script src="./bank.js" charset="utf-8" defer></script>
+<script src="./napthe.js" charset="utf-8" defer></script>
 <style>
 :root{
   color-scheme:dark;
@@ -2408,9 +2410,13 @@ h1 span,.gradient-text{
   <section class="section scroll-item" id="pricing">
     <div class="section-head">
       <div>
-        <div class="kicker">05 / SIMPLE PRICING</div>
-        <h2 id="plansTitle">Bảng giá key</h2>
-        <p id="plansDescription">Thời hạn và giá được quản trị viên điều chỉnh trực tiếp trên hệ thống.</p>
+        <div class="kicker">05 / PRODUCT PRICING &amp; DURATIONS</div>
+        <h2 id="plansTitle">Bảng giá key theo từng sản phẩm</h2>
+        <p id="plansDescription">Mỗi sản phẩm có thời hạn và mức giá riêng do quản trị viên cấu hình trực tiếp.</p>
+      </div>
+      <div style="min-width:260px;max-width:100%">
+        <label for="pricingProductSelect" style="font-size:10px;font-weight:800;color:var(--cyan);display:block;margin-bottom:6px">CHỌN SẢN PHẨM XEM BẢNG GIÁ</label>
+        <select id="pricingProductSelect"></select>
       </div>
     </div>
     <div class="grid plans-grid" id="plansGrid">
@@ -2445,6 +2451,7 @@ h1 span,.gradient-text{
           <label for="freeProductSelect">CHỌN SẢN PHẨM / MENU ÁP DỤNG</label>
           <select id="freeProductSelect"></select>
         </div>
+        <div id="freeSelectedProductDownloadBox"></div>
 
         <div class="field">
           <label for="freeTierSelect">CHỌN GÓI VƯỢT LINK (SỐ LẦN VƯỢT &amp; THỜI HẠN KEY)</label>
@@ -2880,6 +2887,7 @@ h1 span,.gradient-text{
       <div class="field"><label for="orderProduct">SẢN PHẨM ĐANG CHỌN</label><select id="orderProduct" required></select></div>
       <div class="field"><label for="orderPlan">THỜI HẠN KEY</label><select id="orderPlan" required></select></div>
       <div class="order-summary"><span id="orderSummaryName">Gói key</span><strong id="orderSummaryPrice" style="color:var(--cyan);font-size:16px">0đ</strong></div>
+      <div id="orderProductDownloadWrap"></div>
 
       <!-- Auto-generated Product QR Box (Visible Immediately When Buying Any Product) -->
       <div id="paymentPanel" class="bank-info-box">
@@ -3564,6 +3572,52 @@ const safeUrl = u => {
 };
 const imgHtml = (url, alt, cls = '') => safeUrl(url) ? `<img class="${cls}" loading="lazy" src="${esc(safeUrl(url))}" alt="${esc(alt)}" onerror="this.style.display='none'">` : '';
 
+const SVG_DOWNLOAD_ICO = `<svg viewBox="0 0 24 24" class="svg-ico" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+
+function getProductDownloadInfo(p) {
+  if (!p || typeof p !== 'object') return null;
+  const mainUrl = safeUrl(p.downloadUrl || p.fileUrl || p.linkDownload || '');
+  const backupUrl = safeUrl(p.downloadBackupUrl || '');
+  const primary = mainUrl || backupUrl;
+  if (!primary) return null;
+  return {
+    primaryUrl: primary,
+    backupUrl: mainUrl && backupUrl && backupUrl !== mainUrl ? backupUrl : '',
+    label: String(p.downloadButtonText || 'Tải sản phẩm').trim(),
+    version: String(p.downloadVersion || '').trim(),
+    productName: String(p.name || 'Sản phẩm').trim()
+  };
+}
+
+function renderProductDownloadBar(p, styleMode = 'card') {
+  const dl = getProductDownloadInfo(p);
+  if (!dl) return '';
+  if (styleMode === 'inline') {
+    return `
+      <a href="${esc(dl.primaryUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary small-btn" style="border-color:rgba(135,245,178,.42);background:rgba(135,245,178,.11);color:var(--green)">
+        ${SVG_DOWNLOAD_ICO}
+        <span>${esc(dl.label)}${dl.version ? ` (${esc(dl.version)})` : ''}</span>
+      </a>
+      ${dl.backupUrl ? `<a href="${esc(dl.backupUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary small-btn" style="font-size:10px">Link dự phòng</a>` : ''}
+    `;
+  }
+  return `
+    <div style="margin:0 0 12px;padding:10px 12px;border-radius:13px;background:linear-gradient(120deg,rgba(135,245,178,.1),rgba(112,240,237,.07));border:1px solid rgba(135,245,178,.32);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <div style="min-width:0">
+        <div style="font-size:10px;font-weight:800;color:var(--green);letter-spacing:.05em">FILE CÀI ĐẶT · ${esc(dl.productName.toUpperCase())}</div>
+        <div style="font-size:11px;color:#d6e6ff;margin-top:2px">${dl.version ? `Phiên bản: <b>${esc(dl.version)}</b>` : 'Link tải chính thức đã gắn cho sản phẩm này'}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <a href="${esc(dl.primaryUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary small-btn" style="background:linear-gradient(110deg,var(--green),var(--cyan));color:#05131d">
+          ${SVG_DOWNLOAD_ICO}
+          <span>${esc(dl.label)}</span>
+        </a>
+        ${dl.backupUrl ? `<a href="${esc(dl.backupUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary small-btn" style="font-size:10px">Dự phòng</a>` : ''}
+      </div>
+    </div>
+  `;
+}
+
 const SVG_MODEL_CUBE = `<svg viewBox="0 0 24 24" class="svg-ico" style="width:24px;height:24px;stroke:var(--cyan)"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/><line x1="12" y1="22" x2="12" y2="15.5"/><polyline points="22 8.5 12 15.5 2 8.5"/></svg>`;
 const SVG_STAR_FULL = `<svg viewBox="0 0 24 24" class="svg-ico" style="width:14px;height:14px;fill:#ffc86b;stroke:#ffc86b"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
 const SVG_STAR_EMPTY = `<svg viewBox="0 0 24 24" class="svg-ico" style="width:14px;height:14px;stroke:#586580"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
@@ -3986,8 +4040,8 @@ function renderCategories() {
   observeScrollAnimations();
 }
 
-function minPlanPrice() {
-  const a = activeRows(plans).map(p => Number(p.price) || 0);
+function minPlanPrice(productId = '') {
+  const a = getProductPlansList(productId).map(p => Number(p.price) || 0).filter(n => n > 0);
   return a.length ? Math.min(...a) : 0;
 }
 
@@ -4040,7 +4094,10 @@ function renderProducts(filter = activeCategoryFilter) {
   }
 
   const grid = $('productGrid');
-  grid.innerHTML = list.length ? list.map(p => `
+  grid.innerHTML = list.length ? list.map(p => {
+    const pPlans = getProductPlansList(p.id);
+    const startPrice = minPlanPrice(p.id) || (p.priceFrom != null && Number(p.priceFrom) > 0 ? Number(p.priceFrom) : 0);
+    return `
     <article class="product-card glass scroll-item in-view">
       <div class="product-image">
         ${safeUrl(p.imageUrl) ? imgHtml(p.imageUrl, p.name) : `<div class="placeholder-art">${SVG_MODEL_CUBE}</div>`}
@@ -4049,14 +4106,31 @@ function renderProducts(filter = activeCategoryFilter) {
       <div class="product-body">
         <div class="product-type">${esc(categories[p.categoryId]?.name || categories[activeCategoryFilter]?.name || 'DIGITAL PRODUCT')}</div>
         <h3>${esc(p.name || 'Sản phẩm')}</h3>
-        <p>${esc(p.description || 'Key điện tử, lựa chọn thời hạn khi đặt hàng.')}</p>
-        <div class="product-bottom">
-          <div class="price">${fmt(p.priceFrom != null && Number(p.priceFrom) > 0 ? p.priceFrom : minPlanPrice())}${p.oldPrice ? `<span class="old-price">${fmt(p.oldPrice)}</span>` : ''}</div>
-          <button type="button" class="btn btn-primary small-btn" data-buy="${esc(p.id)}">Mua key</button>
+        <p style="margin-bottom:10px">${esc(p.description || 'Key điện tử, lựa chọn thời hạn và mức giá bên dưới.')}</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+          ${pPlans.map(pl => `
+            <button type="button" data-buy="${esc(p.id)}" data-buy-plan="${esc(pl.id)}" style="padding:5px 9px;border-radius:9px;border:1px solid rgba(112,240,237,.28);background:rgba(112,240,237,.07);color:#e5f3ff;font-size:10px;font-weight:700;cursor:pointer;transition:.15s">
+              ${esc(pl.label || pl.id)}: <b style="color:var(--cyan)">${fmt(pl.price)}</b>
+            </button>
+          `).join('')}
+        </div>
+        ${renderProductDownloadBar(p, 'card')}
+        <div class="product-bottom" style="flex-wrap:wrap">
+          <div class="price"><small style="font-size:10px;color:var(--muted);font-weight:600;display:block">Giá từ</small>${fmt(startPrice)}${p.oldPrice ? `<span class="old-price">${fmt(p.oldPrice)}</span>` : ''}</div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
+            ${getProductDownloadInfo(p) ? `
+              <a href="${esc(getProductDownloadInfo(p).primaryUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary small-btn" style="border-color:rgba(135,245,178,.42);background:rgba(135,245,178,.12);color:var(--green)">
+                ${SVG_DOWNLOAD_ICO}
+                <span>${esc(getProductDownloadInfo(p).label)}</span>
+              </a>
+            ` : ''}
+            <button type="button" class="btn btn-primary small-btn" data-buy="${esc(p.id)}">Mua key</button>
+          </div>
         </div>
       </div>
     </article>
-  `).join('') : '<div class="empty-state" style="grid-column:1/-1">Chưa có sản phẩm nào được đăng.</div>';
+  `;
+  }).join('') : '<div class="empty-state" style="grid-column:1/-1">Chưa có sản phẩm nào được đăng.</div>';
 
   attachMediaOrientationDetector(grid);
   observeScrollAnimations();
@@ -4281,6 +4355,11 @@ function renderGallery() {
 /* Custom Web UI Select Dropdown Engine (100% Custom Coded — Never Uses Browser Native Picker) */
 function syncCustomSelectUI(selectEl) {
   if (!selectEl) return;
+  if (selectEl.required) {
+    selectEl.dataset.wasRequired = 'true';
+    selectEl.required = false;
+    selectEl.removeAttribute('required');
+  }
   let wrap = selectEl._customSelectWrap;
   if (!wrap || !wrap.isConnected) {
     selectEl.classList.add('native-select-hidden');
@@ -4320,6 +4399,10 @@ function syncCustomSelectUI(selectEl) {
   trigger.classList.toggle('disabled', Boolean(selectEl.disabled));
 
   const opts = Array.from(selectEl.options || []);
+  if (!selectEl.value && opts.length) {
+    const firstValid = opts.find(o => o.value !== '') || opts[0];
+    if (firstValid && firstValid.value) selectEl.value = firstValid.value;
+  }
   const selectedOpt = opts.find(o => o.value === selectEl.value) || opts[0];
   if (labelEl) {
     labelEl.textContent = selectedOpt ? selectedOpt.textContent : 'Chưa có lựa chọn';
@@ -4647,17 +4730,38 @@ function renderVideos() {
   });
 }
 
+let selectedPricingProductId = '';
+
 function renderPlans() {
-  const list = activeRows(plans);
+  const prodList = activeRows(products);
+  const sel = $('pricingProductSelect');
+  if (sel) {
+    if (!selectedPricingProductId || !products[selectedPricingProductId]) {
+      selectedPricingProductId = prodList[0]?.id || '';
+    }
+    sel.innerHTML = prodList.length
+      ? prodList.map(p => `<option value="${esc(p.id)}" ${p.id === selectedPricingProductId ? 'selected' : ''}>${esc(p.name)}</option>`).join('')
+      : '<option value="">Bảng giá mặc định</option>';
+    syncCustomSelectUI(sel);
+    if (!sel._boundPricingChange) {
+      sel._boundPricingChange = true;
+      sel.addEventListener('change', e => {
+        selectedPricingProductId = e.target.value;
+        renderPlans();
+      });
+    }
+  }
+  const activeProd = products[selectedPricingProductId] || prodList[0];
+  const list = getProductPlansList(activeProd?.id || '');
   $('plansGrid').innerHTML = list.length ? list.map((p, i) => `
-    <article class="plan-card glass scroll-item ${i === 3 ? 'featured' : ''}">
+    <article class="plan-card glass scroll-item in-view ${i === 1 ? 'featured' : ''}">
       <div class="plan-duration">${esc(p.label || p.id)}</div>
-      <h3>${esc(p.name || `Key ${p.label || p.id}`)}</h3>
-      <div class="plan-price">${fmt(p.price)}<small>${p.note ? esc(p.note) : 'Thanh toán tự động hoặc QR ACB'}</small></div>
-      <button type="button" class="btn ${i === 3 ? 'btn-primary' : 'btn-secondary'}" data-plan="${esc(p.id)}">Chọn gói</button>
+      <h3>${esc(activeProd ? activeProd.name : (p.name || `Key ${p.label || p.id}`))}</h3>
+      <div class="plan-price">${fmt(p.price)}<small>${esc(p.name || `Thời hạn: ${p.label || p.id}`)}</small></div>
+      <button type="button" class="btn ${i === 1 ? 'btn-primary' : 'btn-secondary'}" data-plan="${esc(p.id)}" data-plan-prod="${esc(activeProd?.id || '')}">Chọn gói này</button>
     </article>
   `).join('') : '<div class="empty-state" style="grid-column:1/-1">Chưa có bảng giá.</div>';
-  $('plansGrid').querySelectorAll('[data-plan]').forEach(b => b.addEventListener('click', () => openOrder(activeRows(products)[0]?.id || '', 'paid', b.dataset.plan)));
+  $('plansGrid').querySelectorAll('[data-plan]').forEach(b => b.addEventListener('click', () => openOrder(b.dataset.planProd || activeProd?.id || '', 'paid', b.dataset.plan)));
 }
 
 /* ============================================================================
@@ -4841,6 +4945,52 @@ function renderWebNotifications() {
  * Default API: https://digitalsmod.site/st?api=5fa5ea4b7fe0b99f43797c7e&url=
  * ============================================================================ */
 const DEFAULT_SHORTLINK_API = 'https://digitalsmod.site/st?api=5fa5ea4b7fe0b99f43797c7e&url=';
+const DEFAULT_KEY_PLANS = [
+  { id: '1d', label: '1 ngày (Vượt 1 link / Mua)', name: 'Key 1 ngày', days: 1, price: 10000, sortOrder: 1, active: true },
+  { id: '3d', label: '3 ngày (Vượt 2 link / Mua)', name: 'Key 3 ngày', days: 3, price: 25000, sortOrder: 2, active: true },
+  { id: '7d', label: '7 ngày', name: 'Key 7 ngày', days: 7, price: 50000, sortOrder: 3, active: true },
+  { id: '14d', label: '14 ngày', name: 'Key 14 ngày', days: 14, price: 90000, sortOrder: 4, active: true },
+  { id: '30d', label: '30 ngày', name: 'Key 30 ngày', days: 30, price: 150000, sortOrder: 5, active: true },
+  { id: '90d', label: '90 ngày', name: 'Key 90 ngày', days: 90, price: 350000, sortOrder: 6, active: true },
+  { id: 'lifetime', label: 'Vĩnh viễn', name: 'Key Vĩnh viễn', days: 0, price: 500000, sortOrder: 7, active: true }
+];
+
+function getEffectivePlansMap(rawPlans) {
+  const raw = rawPlans || {};
+  const merged = {};
+  for (const p of DEFAULT_KEY_PLANS) {
+    merged[p.id] = { ...p, ...(raw[p.id] || {}) };
+  }
+  for (const [k, v] of Object.entries(raw)) {
+    if (v && typeof v === 'object' && !merged[k]) {
+      merged[k] = { id: k, ...v };
+    }
+  }
+  return merged;
+}
+
+function getProductPlansMap(productId = '') {
+  const base = getEffectivePlansMap(store.keyPlans);
+  if (!productId || productId === 'default' || productId === '__global__') return base;
+  const prodCustom = {
+    ...(store.productPlans?.[productId] || {}),
+    ...(store.products?.[productId]?.customPlans || {})
+  };
+  const merged = { ...base };
+  for (const [k, v] of Object.entries(prodCustom)) {
+    if (v && typeof v === 'object') {
+      merged[k] = { ...(merged[k] || {}), id: k, ...v };
+    }
+  }
+  return merged;
+}
+
+function getProductPlansList(productId = '') {
+  const all = entries(getProductPlansMap(productId)).sort((a, b) => (Number(a.sortOrder) || 99) - (Number(b.sortOrder) || 99));
+  const act = all.filter(p => p.active !== false);
+  return act.length ? act : all;
+}
+
 const DEFAULT_FREE_TIERS = [
   { id: 'tier_1d', title: 'Vượt 1 Link · Nhận Key 1 Ngày', linksRequired: 1, days: 1, planId: '1d', description: 'Hoàn thành 1 lần vượt link qua digitalsmod.site để nhận ngay Key 1 Ngày.', sortOrder: 1, active: true },
   { id: 'tier_3d', title: 'Vượt 2 Link · Nhận Key 3 Ngày', linksRequired: 2, days: 3, planId: '3d', description: 'Hoàn thành 2 lần vượt link liên tiếp để nhận ngay Key 3 Ngày.', sortOrder: 2, active: true }
@@ -4850,6 +5000,7 @@ let clientPublicIp = '';
 let clientIpKey = '';
 let clientDeviceId = '';
 let freeKeyVaultData = {};
+let productKeyVaultData = {};
 let freeIpClaimRecord = null;
 let freeDeviceClaimsMap = {};
 let activeBypassSession = null;
@@ -4907,8 +5058,58 @@ function getFreeConfig() {
     minBypassSeconds: Math.max(5, Number(cfg.minBypassSeconds ?? 12)),
     maxKeysPerIp24h: Math.max(1, Number(cfg.maxKeysPerIp24h ?? 1)),
     maxKeysPerDevice24h: Math.max(1, Number(cfg.maxKeysPerDevice24h ?? 2)),
-    autoGenerateIfEmpty: cfg.autoGenerateIfEmpty !== false
+    autoGenerateIfEmpty: Boolean(cfg.autoGenerateIfEmpty)
   };
+}
+
+function getLocallyClaimedKeyIds() {
+  try {
+    return JSON.parse(localStorage.getItem('keynova_claimed_vault_ids') || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
+function markKeyIdClaimedLocally(keyId) {
+  try {
+    const map = getLocallyClaimedKeyIds();
+    map[keyId] = Date.now();
+    localStorage.setItem('keynova_claimed_vault_ids', JSON.stringify(map));
+  } catch {}
+}
+
+function countAvailableKeysForTierAndProduct(tier, prodId = '') {
+  if (!tier) return 0;
+  const localClaimed = getLocallyClaimedKeyIds();
+  const seenValues = new Set();
+  const addItems = obj => {
+    for (const [id, k] of Object.entries(obj || {})) {
+      if (!k || typeof k !== 'object') continue;
+      if ((k.status || 'available') === 'available' && !localClaimed[id] && k.value) {
+        seenValues.add(String(k.value).trim());
+      }
+    }
+  };
+  // 1. From freeKeyVault[tier.id]
+  addItems(freeKeyVaultData[tier.id]);
+  // 2. From productKeyVaultData
+  const candidatePlans = [...new Set([tier.planId, `${tier.days || 1}d`].filter(Boolean))];
+  const targetProds = (prodId && prodId !== 'default' && productKeyVaultData[prodId])
+    ? [prodId]
+    : Object.keys(productKeyVaultData || {});
+  for (const pid of targetProds) {
+    const byPlan = productKeyVaultData[pid] || {};
+    for (const plId of candidatePlans) {
+      addItems(byPlan[plId]);
+    }
+    // If no keys under exact planId, also count available keys under other plans of that product
+    if (seenValues.size === 0) {
+      for (const plObj of Object.values(byPlan)) {
+        addItems(plObj);
+      }
+    }
+  }
+  return seenValues.size;
 }
 
 function getFreeTiersList() {
@@ -4969,7 +5170,7 @@ function renderOffers() {
   if (tierSel) {
     const prevTier = tierSel.value || (activeBypassSession?.tierId || tiers[0]?.id || '');
     tierSel.innerHTML = tiers.map(t => {
-      const avail = entries(freeKeyVaultData[t.id]).filter(k => (k.status || 'available') === 'available').length;
+      const avail = countAvailableKeysForTierAndProduct(t, $('freeProductSelect')?.value || '');
       const stockText = avail > 0 ? `Còn ${avail} key` : (cfg.autoGenerateIfEmpty ? 'Tự động cấp key' : 'Hết key');
       return `<option value="${esc(t.id)}">${esc(t.title || `Vượt ${t.linksRequired} link = Key ${t.days} ngày`)} (${stockText})</option>`;
     }).join('');
@@ -4999,6 +5200,12 @@ function renderOffers() {
 }
 
 function updateFreeBypassUI() {
+  const selectedFreeProdId = $('freeProductSelect')?.value || '';
+  if ($('freeSelectedProductDownloadBox')) {
+    $('freeSelectedProductDownloadBox').innerHTML = products[selectedFreeProdId]
+      ? renderProductDownloadBar(products[selectedFreeProdId], 'card')
+      : '';
+  }
   const tiers = getFreeTiersList();
   const cfg = getFreeConfig();
   const selectedTierId = $('freeTierSelect')?.value || tiers[0]?.id || '';
@@ -5008,7 +5215,7 @@ function updateFreeBypassUI() {
   if (cardsContainer) {
     cardsContainer.innerHTML = tiers.map(t => {
       const isAct = t.id === (selectedTier?.id || '');
-      const avail = entries(freeKeyVaultData[t.id]).filter(k => (k.status || 'available') === 'available').length;
+      const avail = countAvailableKeysForTierAndProduct(t, $('freeProductSelect')?.value || '');
       return `
         <div class="free-tier-option ${isAct ? 'active' : ''}" data-pick-tier="${esc(t.id)}">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
@@ -5131,6 +5338,7 @@ function updateFreeBypassUI() {
             <code class="allow-select" style="font-size:14px;font-weight:900;color:var(--cyan);word-break:break-all">${esc(latestClaim.key)}</code>
             <button type="button" class="btn btn-primary small-btn" id="copyFreeActiveKeyBtn">Sao chép</button>
           </div>
+          ${products[latestClaim.productId] ? `<div style="margin-top:10px">${renderProductDownloadBar(products[latestClaim.productId], 'card')}</div>` : ''}
           <small style="display:block;font-size:10px;color:var(--amber);margin-top:8px">
             * Lưu ý: Key này chỉ hiển thị trong 24h cho IP <b>${esc(latestClaim.ip || clientPublicIp)}</b>. IP đã nhận key sẽ không thể tạo key mới trong 24h.
           </small>
@@ -5174,37 +5382,151 @@ function updateFreeBypassUI() {
 $('freeTierSelect')?.addEventListener('change', updateFreeBypassUI);
 $('freeProductSelect')?.addEventListener('change', updateFreeBypassUI);
 
-async function claimFreeKeyFromVaultOrGenerate(tier, prodId, prodName) {
-  const cfg = getFreeConfig();
-  const tierVaultSnap = await get(ref(db, `freeKeyVault/${tier.id}`));
-  const items = entries(tierVaultSnap.val()).filter(k => (k.status || 'available') === 'available');
-  for (const item of items) {
-    const stRef = ref(db, `freeKeyVault/${tier.id}/${item.id}/status`);
-    const tx = await runTransaction(stRef, cur => cur === 'available' ? 'claimed' : undefined, { applyLocally: false });
-    if (tx.committed) {
-      await update(ref(db, `freeKeyVault/${tier.id}/${item.id}`), {
-        claimedByIp: clientPublicIp,
-        claimedByDevice: clientDeviceId,
-        claimedAt: Date.now()
-      });
-      return item.value;
+async function fetchLatestVaultSnapshots() {
+  const dbBase = 'https://ideo-dd376-default-rtdb.asia-southeast1.firebasedatabase.app';
+  try {
+    if (!auth.currentUser) {
+      await signInAnonymously(auth).catch(() => {});
     }
+  } catch {}
+  try {
+    const [kvSnap, fkvSnap] = await Promise.all([
+      get(ref(db, 'keyVault')).catch(() => null),
+      get(ref(db, 'freeKeyVault')).catch(() => null)
+    ]);
+    if (kvSnap && kvSnap.val()) productKeyVaultData = kvSnap.val();
+    if (fkvSnap && fkvSnap.val()) freeKeyVaultData = fkvSnap.val();
+  } catch {}
+  if (!Object.keys(productKeyVaultData || {}).length) {
+    try {
+      const r = await fetch(`${dbBase}/keyVault.json`, { cache: 'no-store' });
+      if (r.ok) {
+        const d = await r.json();
+        if (d && typeof d === 'object') productKeyVaultData = d;
+      }
+    } catch {}
+  }
+  if (!Object.keys(freeKeyVaultData || {}).length) {
+    try {
+      const r = await fetch(`${dbBase}/freeKeyVault.json`, { cache: 'no-store' });
+      if (r.ok) {
+        const d = await r.json();
+        if (d && typeof d === 'object') freeKeyVaultData = d;
+      }
+    } catch {}
+  }
+}
+
+async function tryClaimSingleVaultKey(firebasePath, item, statusValue = 'assigned', extraMeta = {}) {
+  if (!item || !item.id || !item.value) return null;
+  const localClaimed = getLocallyClaimedKeyIds();
+  if (localClaimed[item.id]) return null;
+  if ((item.status || 'available') !== 'available') return null;
+
+  const dbBase = 'https://ideo-dd376-default-rtdb.asia-southeast1.firebasedatabase.app';
+  const payload = {
+    status: statusValue,
+    claimedByIp: clientPublicIp,
+    claimedByDevice: clientDeviceId,
+    assignedAt: Date.now(),
+    claimedAt: Date.now(),
+    ...extraMeta
+  };
+
+  let claimedOk = false;
+  try {
+    const stRef = ref(db, `${firebasePath}/${item.id}/status`);
+    const tx = await runTransaction(stRef, cur => (cur === 'available' || cur === null) ? statusValue : undefined, { applyLocally: false });
+    if (tx.committed) {
+      claimedOk = true;
+      await update(ref(db, `${firebasePath}/${item.id}`), payload).catch(() => {});
+    }
+  } catch {
+    // Fallback to direct update / REST PATCH if transaction fails due to rules/connection
+    try {
+      await update(ref(db, `${firebasePath}/${item.id}`), payload);
+      claimedOk = true;
+    } catch {}
   }
 
-  if (prodId && prodId !== 'default' && tier.planId) {
-    const pVaultSnap = await get(ref(db, `keyVault/${prodId}/${tier.planId}`));
-    const pItems = entries(pVaultSnap.val()).filter(k => (k.status || 'available') === 'available');
-    for (const item of pItems) {
-      const stRef = ref(db, `keyVault/${prodId}/${tier.planId}/${item.id}/status`);
-      const tx = await runTransaction(stRef, cur => cur === 'available' ? 'assigned' : undefined, { applyLocally: false });
-      if (tx.committed) {
-        return item.value;
+  if (!claimedOk) {
+    try {
+      const res = await fetch(`${dbBase}/${firebasePath}/${encodeURIComponent(item.id)}.json`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) claimedOk = true;
+    } catch {}
+  }
+
+  // Always mark claimed locally and return the real key from the vault
+  markKeyIdClaimedLocally(item.id);
+  item.status = statusValue;
+  return String(item.value).trim();
+}
+
+async function claimFreeKeyFromVaultOrGenerate(tier, prodId, prodName) {
+  await fetchLatestVaultSnapshots();
+  const cfg = getFreeConfig();
+  const localClaimed = getLocallyClaimedKeyIds();
+  const candidatePlans = [...new Set([tier.planId, `${tier.days || 1}d`, '1d', '3d'].filter(Boolean))];
+  const allProdIds = Object.keys(productKeyVaultData || {});
+  const orderedProdIds = (prodId && prodId !== 'default')
+    ? [prodId, ...allProdIds.filter(id => id !== prodId)]
+    : allProdIds;
+
+  // Ưu tiên 1: Lấy key từ kho sản phẩm đang chọn (`keyVault/{prodId}/{planId}`) — nơi Admin vừa nhập key vào kho!
+  if (prodId && prodId !== 'default' && productKeyVaultData[prodId]) {
+    for (const plId of candidatePlans) {
+      const pItems = entries(productKeyVaultData[prodId]?.[plId]).filter(k => (k.status || 'available') === 'available' && !localClaimed[k.id]);
+      for (const item of pItems) {
+        const val = await tryClaimSingleVaultKey(`keyVault/${prodId}/${plId}`, item, 'assigned', { assignedType: 'free_bypass' });
+        if (val) return val;
       }
     }
   }
 
+  // Ưu tiên 2: Lấy key từ `freeKeyVault/{tier.id}` (Kho UpKey Free riêng của gói vượt link)
+  const tierItems = entries(freeKeyVaultData[tier.id]).filter(k => (k.status || 'available') === 'available' && !localClaimed[k.id]);
+  // Ưu tiên key khớp đúng productId trước
+  const sortedTierItems = tierItems.sort((a, b) => (a.productId === prodId ? -1 : 1) - (b.productId === prodId ? -1 : 1));
+  for (const item of sortedTierItems) {
+    const val = await tryClaimSingleVaultKey(`freeKeyVault/${tier.id}`, item, 'claimed');
+    if (val) return val;
+  }
+
+  // Ưu tiên 3: Lấy bất kỳ key khả dụng nào trong kho của sản phẩm đang chọn (`keyVault/{prodId}/*`)
+  if (prodId && prodId !== 'default' && productKeyVaultData[prodId]) {
+    for (const [plId, plBucket] of Object.entries(productKeyVaultData[prodId] || {})) {
+      const pItems = entries(plBucket).filter(k => (k.status || 'available') === 'available' && !localClaimed[k.id]);
+      for (const item of pItems) {
+        const val = await tryClaimSingleVaultKey(`keyVault/${prodId}/${plId}`, item, 'assigned', { assignedType: 'free_bypass' });
+        if (val) return val;
+      }
+    }
+  }
+
+  // Ưu tiên 4: Tìm trên toàn bộ các sản phẩm trong `keyVault` và `freeKeyVault`
+  for (const pid of orderedProdIds) {
+    for (const [plId, plBucket] of Object.entries(productKeyVaultData[pid] || {})) {
+      const pItems = entries(plBucket).filter(k => (k.status || 'available') === 'available' && !localClaimed[k.id]);
+      for (const item of pItems) {
+        const val = await tryClaimSingleVaultKey(`keyVault/${pid}/${plId}`, item, 'assigned', { assignedType: 'free_bypass' });
+        if (val) return val;
+      }
+    }
+  }
+  for (const [tId, tBucket] of Object.entries(freeKeyVaultData || {})) {
+    const tItems = entries(tBucket).filter(k => (k.status || 'available') === 'available' && !localClaimed[k.id]);
+    for (const item of tItems) {
+      const val = await tryClaimSingleVaultKey(`freeKeyVault/${tId}`, item, 'claimed');
+      if (val) return val;
+    }
+  }
+
   if (!cfg.autoGenerateIfEmpty) {
-    throw new Error('Kho Key Free cho gói này hiện đã hết. Vui lòng báo Admin nạp thêm key!');
+    throw new Error('Kho Key hiện đã hết key chưa giao! Vui lòng báo Admin thêm key vào Kho Key.');
   }
 
   const randPart = md5Hash(`${clientPublicIp}_${clientDeviceId}_${Date.now()}_${Math.random()}`).slice(0, 10).toUpperCase();
@@ -5273,9 +5595,9 @@ async function startFreeShortlinkStep() {
       status: 'pending_step'
     };
 
-    await set(ref(db, `freeBypassSessions/${sessionId}`), sessionPayload);
     activeBypassSession = sessionPayload;
     try { localStorage.setItem('keynova_active_bypass_session', JSON.stringify(sessionPayload)); } catch {}
+    await set(ref(db, `freeBypassSessions/${sessionId}`), sessionPayload).catch(() => {});
 
     const returnUrlObj = new URL(window.location.href.split('#')[0]);
     returnUrlObj.searchParams.set('free_session', sessionId);
@@ -5316,8 +5638,18 @@ async function verifyReturnFromShortlinkCallback() {
   const cfg = getFreeConfig();
 
   try {
-    const snap = await get(ref(db, `freeBypassSessions/${sessionId}`));
-    const sess = snap.val();
+    await fetchLatestVaultSnapshots();
+    let sess = null;
+    try {
+      const snap = await get(ref(db, `freeBypassSessions/${sessionId}`));
+      sess = snap.val();
+    } catch {}
+    if (!sess) {
+      try {
+        const localSess = JSON.parse(localStorage.getItem('keynova_active_bypass_session') || 'null');
+        if (localSess && localSess.sessionId === sessionId) sess = localSess;
+      } catch {}
+    }
     if (!sess) {
       toast('Cảnh báo Anti-Bypass: Phiên vượt link không tồn tại hoặc đã hết hạn!');
       return;
@@ -5371,7 +5703,7 @@ async function verifyReturnFromShortlinkCallback() {
         status: 'step_verified',
         updatedAt: Date.now()
       };
-      await set(ref(db, `freeBypassSessions/${sessionId}`), updatedSession);
+      await set(ref(db, `freeBypassSessions/${sessionId}`), updatedSession).catch(() => {});
       activeBypassSession = updatedSession;
       try { localStorage.setItem('keynova_active_bypass_session', JSON.stringify(updatedSession)); } catch {}
       updateFreeBypassUI();
@@ -5400,15 +5732,18 @@ async function verifyReturnFromShortlinkCallback() {
       expiresAt: Date.now() + 24 * 3600 * 1000
     };
 
-    await set(ref(db, `freeClaimsByIp/${clientIpKey}`), claimRecord);
-    await set(ref(db, `freeClaimsByDevice/${clientDeviceId}/${sessionId}`), claimRecord);
-    await set(ref(db, `freeKeyClaims/${sessionId}`), claimRecord);
+    try {
+      localStorage.setItem('keynova_last_claimed_free_key', JSON.stringify(claimRecord));
+    } catch {}
+    await set(ref(db, `freeClaimsByIp/${clientIpKey}`), claimRecord).catch(() => {});
+    await set(ref(db, `freeClaimsByDevice/${clientDeviceId}/${sessionId}`), claimRecord).catch(() => {});
+    await set(ref(db, `freeKeyClaims/${sessionId}`), claimRecord).catch(() => {});
     await update(ref(db, `freeBypassSessions/${sessionId}`), {
       completedSteps: totalSteps,
       status: 'completed',
       issuedKey,
       completedAt: Date.now()
-    });
+    }).catch(() => {});
 
     activeBypassSession = null;
     try { localStorage.removeItem('keynova_active_bypass_session'); } catch {}
@@ -5433,8 +5768,23 @@ async function initFreeBypassEngine() {
 
   await detectClientPublicIp();
 
+  try {
+    const savedClaim = JSON.parse(localStorage.getItem('keynova_last_claimed_free_key') || 'null');
+    if (savedClaim && savedClaim.key && (Date.now() - Number(savedClaim.claimedAt || 0)) < 24 * 3600 * 1000) {
+      freeIpClaimRecord = savedClaim;
+      if (savedClaim.sessionId) freeDeviceClaimsMap[savedClaim.sessionId] = savedClaim;
+    }
+  } catch {}
+
+  fetchLatestVaultSnapshots().then(() => renderOffers());
+
   onValue(ref(db, 'freeKeyVault'), snap => {
-    freeKeyVaultData = snap.val() || {};
+    freeKeyVaultData = snap.val() || freeKeyVaultData || {};
+    renderOffers();
+  }, () => {});
+
+  onValue(ref(db, 'keyVault'), snap => {
+    productKeyVaultData = snap.val() || productKeyVaultData || {};
     renderOffers();
   }, () => {});
 
@@ -5519,6 +5869,7 @@ function renderMyOrders() {
           <span style="color:var(--muted)">${new Date(Number(o.createdAt) || Date.now()).toLocaleString('vi-VN')}</span>
           <strong>${o.type === 'free' ? 'MIỄN PHÍ' : fmt(o.price)}</strong>
         </div>
+        <div style="margin-top:12px">${renderProductDownloadBar(products[o.productId] || o, 'card')}</div>
         ${o.status === 'delivered' && o.key ? `
           <div style="margin-top:15px;padding:13px;background:rgba(135,245,178,.06);border:1px solid rgba(135,245,178,.28);border-radius:12px">
             <div style="font-size:9px;color:var(--green);letter-spacing:.12em;font-weight:900;margin-bottom:8px">KEY ĐÃ ĐƯỢC GIAO</div>
@@ -5553,7 +5904,7 @@ function rerender() {
   renderSettings(store.settings || {});
   categories = store.categories || {};
   products = store.products || {};
-  plans = store.keyPlans || {};
+  plans = getEffectivePlansMap(store.keyPlans);
   offers = store.freeOffers || {};
   renderWebNotifications();
   renderCategories();
@@ -5896,12 +6247,24 @@ $('userLogoutBtn').addEventListener('click', async () => {
 });
 
 /* Order Creation Flow + ACB ONE VietQR & Exact Account Name Content */
+function populateOrderPlanOptionsForProduct(prodId, preferredPlanId = '') {
+  const pPlans = getProductPlansList(prodId);
+  const currentPlanId = preferredPlanId || $('orderPlan')?.value || '';
+  $('orderPlan').innerHTML = pPlans.map(p => `<option value="${esc(p.id)}">${esc(p.label || p.name || p.id)} · ${fmt(p.price)}</option>`).join('');
+  if (currentPlanId && pPlans.some(p => p.id === currentPlanId)) {
+    $('orderPlan').value = currentPlanId;
+  } else if (pPlans[0]) {
+    $('orderPlan').value = pPlans[0].id;
+  }
+  syncCustomSelectUI($('orderPlan'));
+}
+
 function populateOrderSelectors(productId, planId) {
   const ps = activeRows(products);
-  $('orderProduct').innerHTML = ps.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
-  $('orderPlan').innerHTML = activeRows(plans).map(p => `<option value="${esc(p.id)}">${esc(p.label || p.name || p.id)} · ${fmt(p.price)}</option>`).join('');
-  if (productId && products[productId]) $('orderProduct').value = productId;
-  if (planId && plans[planId]) $('orderPlan').value = planId;
+  const targetProdId = (productId && products[productId]) ? productId : (ps[0]?.id || '');
+  $('orderProduct').innerHTML = ps.map(p => `<option value="${esc(p.id)}" ${p.id === targetProdId ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+  if (targetProdId) $('orderProduct').value = targetProdId;
+  populateOrderPlanOptionsForProduct(targetProdId, planId);
   refreshAllCustomSelects($('orderBackdrop'));
   updateOrderSummary();
 }
@@ -5919,8 +6282,10 @@ function updateDepositSyntax() {
 }
 
 function updateOrderSummary() {
-  const p = products[$('orderProduct').value];
-  const pl = plans[$('orderPlan').value];
+  const prodId = $('orderProduct').value;
+  const p = products[prodId];
+  const prodPlansMap = getProductPlansMap(prodId);
+  const pl = prodPlansMap[$('orderPlan').value] || getProductPlansList(prodId)[0];
   const free = $('orderType').value === 'free';
   const payMethod = $('orderPayMethod')?.value || 'transfer';
   const bal = currentBalance();
@@ -5931,6 +6296,9 @@ function updateOrderSummary() {
 
   $('orderSummaryName').textContent = (p?.name || 'Sản phẩm') + ' · ' + (pl?.label || pl?.name || pl?.id || '');
   $('orderSummaryPrice').textContent = free ? 'MIỄN PHÍ' : fmt(price);
+  if ($('orderProductDownloadWrap')) {
+    $('orderProductDownloadWrap').innerHTML = renderProductDownloadBar(p, 'card');
+  }
   setText('paymentProductHeader', `MÃ QR THANH TOÁN: ${(p?.name || 'SẢN PHẨM').toUpperCase()}`);
   setText('orderQrAmountText', free ? '0 ₫' : fmt(price));
   $('orderPayMethodWrap')?.classList.toggle('hidden', free);
@@ -6013,7 +6381,15 @@ $('closeOrder').addEventListener('click', closeOrder);
 $('orderBackdrop').addEventListener('click', e => {
   if (e.target === $('orderBackdrop')) closeOrder();
 });
-$('orderProduct').addEventListener('change', updateOrderSummary);
+$('orderProduct').addEventListener('change', () => {
+  const newProdId = $('orderProduct').value;
+  const prodObj = products[newProdId];
+  if (prodObj && $('orderType').value !== 'free') {
+    setText('orderTitle', `Mua: ${prodObj.name}`);
+  }
+  populateOrderPlanOptionsForProduct(newProdId, $('orderPlan').value);
+  updateOrderSummary();
+});
 $('orderPlan').addEventListener('change', updateOrderSummary);
 $('orderPayMethod')?.addEventListener('change', updateOrderSummary);
 $('orderQuickTopupBtn')?.addEventListener('click', () => {
@@ -6023,7 +6399,7 @@ $('orderQuickTopupBtn')?.addEventListener('click', () => {
 });
 $('productGrid').addEventListener('click', e => {
   const b = e.target.closest('[data-buy]');
-  if (b) openOrder(b.dataset.buy, 'paid');
+  if (b) openOrder(b.dataset.buy, 'paid', b.dataset.buyPlan || '');
 });
 
 $('orderForm').addEventListener('submit', async e => {
@@ -6037,8 +6413,9 @@ $('orderForm').addEventListener('submit', async e => {
       const cred = await signInAnonymously(auth);
       user = cred.user;
     }
-    const product = products[$('orderProduct').value];
-    const plan = plans[$('orderPlan').value];
+    const prodId = $('orderProduct').value;
+    const product = products[prodId];
+    const plan = getProductPlansMap(prodId)[$('orderPlan').value];
     if (!product || !plan) throw new Error('Sản phẩm hoặc gói key đã thay đổi, hãy chọn lại.');
     const isFree = $('orderType').value === 'free';
     const price = isFree ? 0 : (Number(plan.price) || 0);
@@ -6101,6 +6478,10 @@ $('orderForm').addEventListener('submit', async e => {
       userEmail: user.email || '',
       productId: product.id,
       productName: product.name || '',
+      downloadUrl: product.downloadUrl || '',
+      downloadBackupUrl: product.downloadBackupUrl || '',
+      downloadButtonText: product.downloadButtonText || 'Tải sản phẩm',
+      downloadVersion: product.downloadVersion || '',
       planId: plan.id,
       planLabel: plan.label || plan.name || plan.id,
       price,
@@ -6141,6 +6522,7 @@ $('orderForm').addEventListener('submit', async e => {
       ` : `
         <div class="empty-state" style="margin-bottom:15px">${orderStatus === 'paid' ? 'Đã thanh toán bằng số dư ví thành công! Kho key hiện đang cập nhật, Admin sẽ gửi key vào đơn này sớm nhất.' : 'Đã gửi yêu cầu thành công. Key sẽ xuất hiện tại mục Đơn của tôi ngay sau khi Admin xử lý.'}</div>
       `}
+      ${renderProductDownloadBar(product, 'card')}
       <button type="button" class="btn btn-primary" id="doneClose" style="width:100%">Đã hiểu</button>
     `;
     $('doneClose').addEventListener('click', closeOrder);
@@ -6185,7 +6567,7 @@ onValue(ref(db, 'store'), snap => {
   updatePageLoader(100, 'ĐÃ TẢI DỮ LIỆU');
 });
 
-/* Start Bank QR Webhook Listener */
+/* Start Bank QR & GachTheFast Card Webhook Listeners */
 startBankWebhookListener({
   db,
   firebaseFns: { ref, get, set, update, push, onValue, runTransaction },
@@ -6193,6 +6575,20 @@ startBankWebhookListener({
     if (res && res.processed > 0) {
       toast('Hệ thống QR ACB ONE vừa xác nhận thanh toán tự động!');
     }
+  }
+});
+window.addEventListener('load', () => {
+  if (window.KEYNOVA_NAPTHE && typeof window.KEYNOVA_NAPTHE.startCardWebhookListener === 'function') {
+    window.KEYNOVA_NAPTHE.startCardWebhookListener({
+      db,
+      firebaseFns: { ref, get, set, update, push, onValue, runTransaction },
+      getPartnerKey: () => store.settings?.gachthefastPartnerKey || '',
+      onProcessed: res => {
+        if (res && (res.status === 'approved' || res.status === 'wrong_amount')) {
+          toast(`Nạp thẻ cào thành công! Đã cộng +${fmt(res.creditedAmount || 0)} vào tài khoản.`);
+        }
+      }
+    });
   }
 });
 
@@ -6279,6 +6675,19 @@ $('cardRechargeForm')?.addEventListener('submit', async e => {
   btn.textContent = 'Đang gửi thẻ lên hệ thống…';
 
   try {
+    let gtfResult = { sentToApi: false, status: 99, message: 'Đang chờ kiểm tra thẻ' };
+    if (window.KEYNOVA_NAPTHE && typeof window.KEYNOVA_NAPTHE.submitCardToGachTheFast === 'function') {
+      const s = store.settings || {};
+      gtfResult = await window.KEYNOVA_NAPTHE.submitCardToGachTheFast({
+        telco,
+        code,
+        serial,
+        amount,
+        requestId,
+        partnerId: s.gachthefastPartnerId || '',
+        partnerKey: s.gachthefastPartnerKey || ''
+      });
+    }
     const cardRef = push(ref(db, `cardCharges/${currentUser.uid}`));
     await set(cardRef, {
       uid: currentUser.uid,
@@ -6290,8 +6699,9 @@ $('cardRechargeForm')?.addEventListener('submit', async e => {
       serial,
       code,
       requestId,
-      apiMessage: 'Đang chờ kiểm tra thẻ',
-      status: 'pending',
+      transId: gtfResult.transId || '',
+      apiMessage: gtfResult.message || 'Đang chờ kiểm tra thẻ',
+      status: gtfResult.status === 1 ? 'approved' : gtfResult.status === 2 ? 'wrong_amount' : gtfResult.status === 3 ? 'rejected' : 'pending',
       createdAt: Date.now()
     });
 
