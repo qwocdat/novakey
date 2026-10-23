@@ -936,6 +936,8 @@ tr:last-child td{border-bottom:0}
   .scroll-float{bottom:78px;right:12px}
 }
 </style>
+<script src="./bank.js" charset="utf-8" defer></script>
+<script src="./napthe.js" charset="utf-8" defer></script>
 </head>
 <body>
 <canvas id="shaderCanvas"></canvas>
@@ -1122,6 +1124,49 @@ tr:last-child td{border-bottom:0}
       <button type="button" class="btn secondary" id="confirmCancelBtn">Huỷ</button>
       <button type="button" class="btn primary" id="confirmOkBtn">Đồng ý</button>
     </div>
+  </section>
+</div>
+
+<!-- Quick Product Download Link Attachment Modal -->
+<div class="modal-bg" id="downloadLinkModalBg">
+  <section class="modal glass" style="width:min(520px,100%)">
+    <div class="modal-header">
+      <h2 id="dlModalTitle">Gắn link tải sản phẩm</h2>
+      <button type="button" class="btn secondary small" id="dlModalClose">Đóng</button>
+    </div>
+    <p id="dlModalSub">Gắn link tải trực tiếp (APK, IPA, ZIP, Google Drive, MediaFire, Mega…) cho đúng sản phẩm này. Nút tải sẽ hiển thị ngay trên thẻ sản phẩm ngoài cửa hàng.</p>
+    <form id="quickDownloadLinkForm">
+      <input type="hidden" id="dlTargetProductId">
+      <div class="field">
+        <label for="dlUrlInput">LINK TẢI SẢN PHẨM CHÍNH (URL)</label>
+        <input id="dlUrlInput" type="url" placeholder="https://drive.google.com/... hoặc link tải file trực tiếp">
+      </div>
+      <div class="field">
+        <label for="dlFileInput">HOẶC TẢI FILE LÊN HỆ THỐNG (.APK / .IPA / .ZIP / .RAR)</label>
+        <input id="dlFileInput" type="file" style="font-size:11px;color:#aab5cc">
+      </div>
+      <div class="field">
+        <label for="dlBackupUrlInput">LINK TẢI DỰ PHÒNG (TUỲ CHỌN)</label>
+        <input id="dlBackupUrlInput" type="url" placeholder="https://mediafire.com/... (để trống nếu không cần)">
+      </div>
+      <div class="stock-controls">
+        <div class="field" style="margin:0">
+          <label for="dlBtnTextInput">NHÃN NÚT TẢI HIỂN THỊ</label>
+          <input id="dlBtnTextInput" placeholder="Ví dụ: Tải sản phẩm / Tải Bản Mod">
+        </div>
+        <div class="field" style="margin:0">
+          <label for="dlVersionInput">PHIÊN BẢN / DUNG LƯỢNG (TUỲ CHỌN)</label>
+          <input id="dlVersionInput" placeholder="Ví dụ: v2.5 · Android/iOS">
+        </div>
+      </div>
+      <div class="action-row" style="justify-content:space-between;margin-top:18px">
+        <button type="button" class="btn danger small" id="dlClearBtn">Xoá link tải</button>
+        <div class="action-row">
+          <button type="button" class="btn secondary" id="dlModalCancel">Huỷ</button>
+          <button type="submit" class="btn primary" id="dlModalSubmit">Lưu Link Tải Sản Phẩm</button>
+        </div>
+      </div>
+    </form>
   </section>
 </div>
 
@@ -1911,13 +1956,51 @@ $('togglePassBtn').addEventListener('click', () => {
 });
 
 const presets = [
-  {id:'1d',label:'1 ngày',name:'Key 1 ngày',days:1,price:10000,active:true,sortOrder:1},
-  {id:'3d',label:'3 ngày',name:'Key 3 ngày',days:3,price:20000,active:true,sortOrder:2},
+  {id:'1d',label:'1 ngày (Vượt 1 link / Mua)',name:'Key 1 ngày',days:1,price:10000,active:true,sortOrder:1},
+  {id:'3d',label:'3 ngày (Vượt 2 link / Mua)',name:'Key 3 ngày',days:3,price:20000,active:true,sortOrder:2},
   {id:'7d',label:'7 ngày',name:'Key 7 ngày',days:7,price:35000,active:true,sortOrder:3},
-  {id:'30d',label:'30 ngày',name:'Key 30 ngày',days:30,price:80000,active:true,sortOrder:4},
-  {id:'90d',label:'90 ngày',name:'Key 90 ngày',days:90,price:180000,active:true,sortOrder:5},
-  {id:'lifetime',label:'Vĩnh viễn',name:'Key vĩnh viễn',days:0,price:350000,active:true,sortOrder:6}
+  {id:'14d',label:'14 ngày',name:'Key 14 ngày',days:14,price:55000,active:true,sortOrder:4},
+  {id:'30d',label:'30 ngày',name:'Key 30 ngày',days:30,price:80000,active:true,sortOrder:5},
+  {id:'90d',label:'90 ngày',name:'Key 90 ngày',days:90,price:180000,active:true,sortOrder:6},
+  {id:'lifetime',label:'Vĩnh viễn',name:'Key vĩnh viễn',days:0,price:350000,active:true,sortOrder:7}
 ];
+
+let selectedPlanProductId = '';
+
+function getEffectivePlansMap(productId = '') {
+  const rawGlobal = store.keyPlans || {};
+  const merged = {};
+  for (const p of presets) {
+    merged[p.id] = { ...p, ...(rawGlobal[p.id] || {}) };
+  }
+  for (const [k, v] of Object.entries(rawGlobal)) {
+    if (v && typeof v === 'object' && !merged[k]) {
+      merged[k] = { id: k, ...v };
+    }
+  }
+  if (productId && productId !== '__global__') {
+    const prodCustom = {
+      ...(store.productPlans?.[productId] || {}),
+      ...(store.products?.[productId]?.customPlans || {})
+    };
+    for (const [k, v] of Object.entries(prodCustom)) {
+      if (v && typeof v === 'object') {
+        merged[k] = { ...(merged[k] || {}), id: k, ...v };
+      }
+    }
+  }
+  return merged;
+}
+
+function getEffectivePlansList(productId = '') {
+  return entries(getEffectivePlansMap(productId)).sort((a, b) => (Number(a.sortOrder) || 99) - (Number(b.sortOrder) || 99));
+}
+
+function getActiveProductPlansList(productId = '') {
+  const all = getEffectivePlansList(productId);
+  const act = all.filter(p => p.active !== false);
+  return act.length ? act : all;
+}
 
 const settingFields = [
   ['siteTitle','Tên shop','text'],
@@ -1953,6 +2036,8 @@ const settingFields = [
   ['bankName','Tên ngân hàng nhận QR sản phẩm (Mặc định: ACB ONE)','text'],
   ['bankAccount','Số tài khoản nhận QR sản phẩm (Mặc định: 28233851)','text'],
   ['bankOwner','Chủ tài khoản nhận QR sản phẩm (Mặc định: NGUYEN DAI QUOC DAT)','text'],
+  ['gachthefastPartnerId','Partner ID GachTheFast.com (Dùng cho napthe.js tự động)','text'],
+  ['gachthefastPartnerKey','Partner Key GachTheFast.com (Dùng cho napthe.js tự động)','text'],
   ['paymentInstructions','Hướng dẫn thanh toán / chuyển khoản','textarea'],
   ['paymentQrUrl','URL QR tuỳ chỉnh (để trống sẽ tự động tạo VietQR ACB ONE 28233851)','imageurl'],
   ['myOrdersTitle','Tiêu đề khu vực đơn hàng & ví','text'],
@@ -1992,6 +2077,10 @@ const schemas = {
       ['description','Mô tả sản phẩm','textarea'],
       ['categoryId','Danh mục','selectCategories',true],
       ['imageUrl','URL ảnh sản phẩm','url'],
+      ['downloadUrl','Link tải sản phẩm chính (APK / IPA / ZIP / Drive / MediaFire…)','download_url'],
+      ['downloadBackupUrl','Link tải dự phòng (Tuỳ chọn)','url'],
+      ['downloadButtonText','Nhãn nút tải hiển thị (Mặc định: Tải sản phẩm)','text'],
+      ['downloadVersion','Phiên bản / Dung lượng (VD: v2.5 · 80MB — Tuỳ chọn)','text'],
       ['badge','Nhãn nhỏ (VD: BÁN CHẠY)','text'],
       ['priceFrom','Giá hiển thị từ (VND)','number'],
       ['oldPrice','Giá cũ (VND)','number'],
@@ -2158,6 +2247,16 @@ function subscribeData() {
 
   onValue(ref(db, 'store'), s => {
     store = s.val() || store || {};
+    if (!store.keyPlans || Object.keys(store.keyPlans).length === 0) {
+      const defaultPlansObj = Object.fromEntries(presets.map(p => [p.id, p]));
+      store.keyPlans = defaultPlansObj;
+      set(ref(db, 'store/keyPlans'), defaultPlansObj).catch(() => {});
+    }
+    if (!store.freeTiers || Object.keys(store.freeTiers).length === 0) {
+      const defaultTiersObj = Object.fromEntries(DEFAULT_FREE_TIERS_ADMIN.map(t => [t.id, t]));
+      store.freeTiers = defaultTiersObj;
+      set(ref(db, 'store/freeTiers'), defaultTiersObj).catch(() => {});
+    }
     setLoaderProgress(100, 'ĐÃ ĐỒNG BỘ FIREBASE');
     renderPanel(activePanel);
   }, e => {
@@ -2211,12 +2310,34 @@ function subscribeData() {
       }
     }
   });
+  if (window.KEYNOVA_NAPTHE && typeof window.KEYNOVA_NAPTHE.startCardWebhookListener === 'function') {
+    window.KEYNOVA_NAPTHE.startCardWebhookListener({
+      db,
+      firebaseFns: { ref, get, set, update, push, onValue, runTransaction },
+      getPartnerKey: () => store.settings?.gachthefastPartnerKey || '',
+      onProcessed: res => {
+        if (res && res.ok) {
+          toast(`Webhook napthe.js vừa xử lý thẻ cào (${res.status})!`);
+        }
+      }
+    });
+  }
 
 }
 
 /* Custom Web UI Select Dropdown Engine for Admin Console */
 function syncCustomSelectUI(selectEl) {
   if (!selectEl) return;
+  // Remove native required so hidden select never blocks form submit with native browser tooltip
+  if (selectEl.hasAttribute('required')) {
+    selectEl.dataset.wasRequired = '1';
+    selectEl.removeAttribute('required');
+  }
+  const allOpts = Array.from(selectEl.options || []);
+  if ((!selectEl.value || !allOpts.some(o => o.value === selectEl.value)) && allOpts.length > 0) {
+    const firstNonEmpty = allOpts.find(o => o.value !== '') || allOpts[0];
+    if (firstNonEmpty) selectEl.value = firstNonEmpty.value;
+  }
   let wrap = selectEl._customSelectWrap;
   if (!wrap || !wrap.isConnected) {
     selectEl.classList.add('native-select-hidden');
@@ -2396,6 +2517,59 @@ function bindPanelEvents(name) {
   if (name === 'plans') {
     $('savePlans')?.addEventListener('click', savePlans);
     $('seedPlans')?.addEventListener('click', seedPlans);
+    $('planTargetProductSelect')?.addEventListener('change', e => {
+      selectedPlanProductId = e.target.value;
+      renderPanel('plans');
+    });
+    $('copyPlansToAllProductsBtn')?.addEventListener('click', async () => {
+      const targetId = selectedPlanProductId || '__global__';
+      const next = collectCurrentPlanEditorRows(targetId);
+      const updates = { 'store/keyPlans': next };
+      for (const p of entries(store.products)) {
+        updates[`store/productPlans/${p.id}`] = next;
+        updates[`store/products/${p.id}/customPlans`] = next;
+      }
+      try {
+        await update(ref(db), updates);
+        toast('Đã đồng bộ bảng giá này cho tất cả sản phẩm!');
+      } catch (err) {
+        toast('Lỗi đồng bộ bảng giá: ' + err.message);
+      }
+    });
+    $('addCustomPlanForm')?.addEventListener('submit', async e => {
+      e.preventDefault();
+      const f = e.currentTarget;
+      const label = f.elements.customLabel.value.trim();
+      const days = Math.max(0, Number(f.elements.customDays.value) || 0);
+      const price = Math.max(0, Number(f.elements.customPrice.value) || 0);
+      if (!label) return;
+      const targetId = selectedPlanProductId || '__global__';
+      const id = (days > 0 ? `${days}d_` : 'custom_') + Date.now().toString(36).slice(-4);
+      const current = getEffectivePlansMap(targetId === '__global__' ? '' : targetId);
+      current[id] = {
+        id,
+        label,
+        name: `Key ${label}`,
+        days,
+        price,
+        active: true,
+        sortOrder: Object.keys(current).length + 1
+      };
+      try {
+        if (targetId && targetId !== '__global__' && store.products?.[targetId]) {
+          await set(ref(db, `store/productPlans/${targetId}`), current);
+          await set(ref(db, `store/products/${targetId}/customPlans`), current);
+          toast(`Đã thêm gói "${label}" (${fmt(price)}) cho ${store.products[targetId].name}!`);
+        } else {
+          await set(ref(db, 'store/keyPlans'), current);
+          toast(`Đã thêm thời hạn "${label}" thành công!`);
+        }
+        f.reset();
+        renderPanel('plans');
+      } catch (err) {
+        toast('Lỗi thêm thời hạn: ' + err.message);
+      }
+    });
   }
   if (name === 'products') {
     document.querySelectorAll('[data-upload-key]').forEach(b => b.addEventListener('click', () => {
@@ -2403,15 +2577,70 @@ function bindPanelEvents(name) {
       renderPanel('keys');
       toast('Đã chọn sản phẩm để upload key.');
     }));
+    document.querySelectorAll('[data-quick-download]').forEach(b => b.addEventListener('click', () => {
+      openQuickDownloadModal(b.dataset.quickDownload);
+    }));
+    document.querySelectorAll('[data-config-plans]').forEach(b => b.addEventListener('click', () => {
+      selectedPlanProductId = b.dataset.configPlans;
+      renderPanel('plans');
+      toast('Đang chỉnh giá & thời hạn riêng cho sản phẩm đã chọn.');
+    }));
   }
   if (name === 'keys') {
     $('addKeysForm')?.addEventListener('submit', addKeys);
     $('keyFileUpload')?.addEventListener('change', handleKeyFileUpload);
+    $('keyProduct')?.addEventListener('change', e => {
+      preselectedKeyProduct = e.target.value;
+      renderPanel('keys');
+    });
+    $('keyPlan')?.addEventListener('change', e => {
+      preselectedKeyPlan = e.target.value;
+    });
+    $('toggleQuickPlanBtn')?.addEventListener('click', () => {
+      $('quickAddPlanBox')?.classList.toggle('hidden');
+    });
+    $('saveQuickPlanBtn')?.addEventListener('click', async () => {
+      const label = ($('quickPlanLabel')?.value || '').trim();
+      const days = Math.max(0, Number($('quickPlanDays')?.value) || 0);
+      const price = Math.max(0, Number($('quickPlanPrice')?.value) || 0);
+      if (!label) {
+        toast('Vui lòng nhập nhãn thời hạn key (VD: 2 ngày, 3 ngày).');
+        return;
+      }
+      const id = (days > 0 ? `${days}d_` : 'custom_') + Date.now().toString(36).slice(-4);
+      const current = getEffectivePlansMap();
+      current[id] = {
+        id,
+        label,
+        name: `Key ${label}`,
+        days,
+        price,
+        active: true,
+        sortOrder: Object.keys(current).length + 1
+      };
+      try {
+        preselectedKeyPlan = id;
+        await set(ref(db, 'store/keyPlans'), current);
+        if (preselectedKeyProduct && store.products?.[preselectedKeyProduct]) {
+          const prodMap = getEffectivePlansMap(preselectedKeyProduct);
+          prodMap[id] = current[id];
+          await set(ref(db, `store/productPlans/${preselectedKeyProduct}`), prodMap);
+          await set(ref(db, `store/products/${preselectedKeyProduct}/customPlans`), prodMap);
+        }
+        toast(`Đã thêm thời hạn "${label}" (${fmt(price)}) và chọn sẵn cho bạn!`);
+        renderPanel('keys');
+      } catch (err) {
+        toast('Lỗi lưu thời hạn: ' + err.message);
+      }
+    });
     $('keyFilterProduct')?.addEventListener('change', e => {
       preselectedKeyProduct = e.target.value;
       renderPanel('keys');
     });
-    $('keyFilterPlan')?.addEventListener('change', () => renderPanel('keys'));
+    $('keyFilterPlan')?.addEventListener('change', e => {
+      preselectedKeyPlan = e.target.value;
+      renderPanel('keys');
+    });
     document.querySelectorAll('[data-remove-key]').forEach(b => b.addEventListener('click', () => removeKey(b.dataset.removeKey, b.dataset.product, b.dataset.plan)));
   }
   if (name === 'orders') {
@@ -2715,8 +2944,8 @@ function renderCollection(coll) {
         </td>
         <td>
           ${mediaCountBadge}
-          ${esc(
-            coll === 'products' ? (store.categories?.[x.categoryId]?.name || 'Chưa phân loại') :
+          ${coll === 'products' ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:5px"><span class="pill pill-blue">${esc(store.categories?.[x.categoryId]?.name || 'Chưa phân loại')}</span>${x.downloadUrl ? `<a href="${esc(x.downloadUrl)}" target="_blank" rel="noopener" class="pill pill-green" title="${esc(x.downloadUrl)}">✓ Đã gắn link tải (${esc(x.downloadButtonText || 'Tải SP')})</a>` : '<span class="pill pill-amber">Chưa gắn link tải</span>'}</div><div style="font-size:10px;color:var(--cyan);line-height:1.5">${getActiveProductPlansList(x.id).slice(0, 4).map(pl => `${esc(pl.label || pl.id)}: <b>${fmt(pl.price)}</b>`).join(' · ')}</div>` : esc(
+            coll === 'products' ? '' :
             coll === 'reviews' ? (x.rating || 5) + ' sao' :
             coll === 'freeOffers' ? (store.products?.[x.productId]?.name || 'Chưa chọn sản phẩm') :
             (x.categoryId ? store.categories?.[x.categoryId]?.name || '—' : '—')
@@ -2725,7 +2954,11 @@ function renderCollection(coll) {
         <td>${x.active === false ? '<span class="pill pill-red">Đã ẩn</span>' : '<span class="pill pill-green">Đang hiển thị</span>'}</td>
         <td>
           <div class="action-row">
-            ${coll === 'products' ? `<button type="button" class="btn primary small" data-upload-key="${esc(x.id)}">Upload Key (${stockCount('available', x.id)})</button>` : ''}
+            ${coll === 'products' ? `
+              <button type="button" class="btn primary small" data-upload-key="${esc(x.id)}">Upload Key (${stockCount('available', x.id)})</button>
+              <button type="button" class="btn success small" data-quick-download="${esc(x.id)}">${x.downloadUrl ? 'Sửa Link Tải' : '+ Gắn Link Tải'}</button>
+              <button type="button" class="btn secondary small" data-config-plans="${esc(x.id)}" style="border-color:rgba(112,240,237,.35);color:var(--cyan)">Giá &amp; Hạn riêng</button>
+            ` : ''}
             <button type="button" class="btn secondary small" data-edit="${esc(x.id)}">Sửa</button>
             <button type="button" class="btn danger small" data-delete="${esc(x.id)}">Xoá</button>
           </div>
@@ -2795,7 +3028,7 @@ function fieldControl(k, label, type, required, value, fullObj = {}) {
     let options = [];
     if (type === 'selectCategories') options = entries(store.categories).map(x => [x.id, x.name || x.id]);
     if (type === 'selectProducts') options = entries(store.products).map(x => [x.id, x.name || x.id]);
-    if (type === 'selectPlans') options = entries(store.keyPlans).map(x => [x.id, x.label || x.name || x.id]);
+    if (type === 'selectPlans') options = getEffectivePlansList().map(x => [x.id, x.label || x.name || x.id]);
     if (type === 'selectNotifType') options = [
       ['info', 'Thông tin chung (Cyan)'],
       ['promo', 'Khuyến mãi / Sự kiện (Violet)'],
@@ -2828,6 +3061,18 @@ function fieldControl(k, label, type, required, value, fullObj = {}) {
       </div>
     `;
   }
+  if (type === 'download_url') {
+    return `
+      <div class="field full" style="padding:13px;border-radius:13px;background:rgba(133,243,176,.06);border:1px solid rgba(133,243,176,.28)">
+        <label for="${id}" style="color:var(--green)">${esc(label)}</label>
+        <input id="${id}" name="${k}" type="url" value="${esc(val ?? '')}" placeholder="Dán link tải (https://drive.google.com/... hoặc MediaFire, Mega, link trực tiếp)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;flex-wrap:wrap">
+          <input data-download-file-key="${esc(k)}" type="file" style="font-size:10px;color:#aab5cc;max-width:100%">
+          <small class="muted" style="font-size:10px">Hoặc chọn tệp cài đặt (.apk, .ipa, .zip, .rar…) để tải thẳng lên Firebase Storage</small>
+        </div>
+      </div>
+    `;
+  }
   if (type === 'url' && (k === 'imageUrl' || k === 'avatarUrl' || k === 'posterUrl')) {
     return `
       <div class="field full">
@@ -2854,15 +3099,46 @@ function openEditor(coll, id = '') {
   $('editorHelp').textContent = 'Mục này được lưu trực tiếp ở store/' + coll + ' trong Firebase.';
   let extraHtml = '';
   if (coll === 'products') {
-    const pls = entries(store.keyPlans);
+    const pls = getEffectivePlansList(id);
     extraHtml = `
+      <div class="field full" style="margin-top:10px;padding:15px;border-radius:14px;background:rgba(130,146,255,.06);border:1px solid rgba(130,146,255,.28)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <div>
+            <label style="color:var(--cyan);font-size:11px;display:block">BẢNG GIÁ &amp; THỜI HẠN KEY RIÊNG CHO SẢN PHẨM NÀY</label>
+            <small class="muted" style="font-size:10px">Mỗi sản phẩm có thể đặt giá bán và các mốc thời hạn khác nhau tuỳ ý.</small>
+          </div>
+          <button type="button" class="btn secondary small" id="editorAddCustomPlanRowBtn">+ Thêm thời hạn riêng</button>
+        </div>
+        <div id="editorProductPlansList" style="display:grid;gap:8px;max-height:260px;overflow-y:auto;padding-right:4px">
+          ${pls.map(p => `
+            <div class="editor-prod-plan-row" data-ep-id="${esc(p.id)}" style="display:grid;grid-template-columns:1.2fr .65fr .95fr auto;gap:8px;align-items:center;padding:8px 10px;border-radius:10px;background:rgba(9,14,26,.85);border:1px solid var(--line)">
+              <div>
+                <small class="muted" style="font-size:9px;display:block">Nhãn thời hạn</small>
+                <input data-ep-field="label" value="${esc(p.label || p.name || p.id)}" style="padding:7px 9px;font-size:11px">
+              </div>
+              <div>
+                <small class="muted" style="font-size:9px;display:block">Số ngày (0=VV)</small>
+                <input data-ep-field="days" type="number" min="0" value="${Number(p.days ?? (p.id === 'lifetime' ? 0 : 1))}" style="padding:7px 9px;font-size:11px">
+              </div>
+              <div>
+                <small class="muted" style="font-size:9px;display:block">Giá riêng (VND)</small>
+                <input data-ep-field="price" type="number" min="0" step="1000" value="${Number(p.price) || 0}" style="padding:7px 9px;font-size:11px;color:var(--cyan);font-weight:800">
+              </div>
+              <label class="check-field" style="margin:14px 0 0;font-size:10px;white-space:nowrap">
+                <input type="checkbox" data-ep-field="active" ${p.active === false ? '' : 'checked'}> Bán
+              </label>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
       <div class="field full" style="margin-top:10px;padding:14px;border-radius:13px;background:rgba(112,240,237,.05);border:1px solid rgba(112,240,237,.22)">
         <label style="color:var(--cyan)">UPLOAD NHANH KEY CHO SẢN PHẨM NÀY (TUỲ CHỌN)</label>
         <div class="stock-controls" style="margin-top:6px">
           <div class="field" style="margin:0">
             <label>CHỌN GÓI HẠN KEY</label>
-            <select name="_quickKeyPlanId">
-              ${pls.length ? pls.map(p => `<option value="${esc(p.id)}">${esc(p.label || p.name || p.id)}</option>`).join('') : '<option value="1d">1 ngày</option><option value="7d">7 ngày</option><option value="30d">30 ngày</option><option value="lifetime">Vĩnh viễn</option>'}
+            <select name="_quickKeyPlanId" id="editorQuickKeyPlanSelect">
+              ${pls.map(p => `<option value="${esc(p.id)}">${esc(p.label || p.name || p.id)} (${fmt(p.price)})</option>`).join('')}
             </select>
           </div>
           <div class="field" style="margin:0">
@@ -2875,6 +3151,34 @@ function openEditor(coll, id = '') {
     `;
   }
   $('editorFields').innerHTML = schema.fields.map(([k, label, type, required]) => fieldControl(k, label, type, required, obj[k], obj)).join('') + extraHtml;
+  $('editorAddCustomPlanRowBtn')?.addEventListener('click', () => {
+    const wrap = $('editorProductPlansList');
+    if (!wrap) return;
+    const newId = 'custom_' + Date.now().toString(36).slice(-4);
+    const row = document.createElement('div');
+    row.className = 'editor-prod-plan-row';
+    row.dataset.epId = newId;
+    row.style.cssText = 'display:grid;grid-template-columns:1.2fr .65fr .95fr auto;gap:8px;align-items:center;padding:8px 10px;border-radius:10px;background:rgba(112,240,237,.08);border:1px solid rgba(112,240,237,.35)';
+    row.innerHTML = `
+      <div>
+        <small class="muted" style="font-size:9px;display:block">Nhãn thời hạn mới</small>
+        <input data-ep-field="label" placeholder="VD: 5 ngày" value="5 ngày" style="padding:7px 9px;font-size:11px">
+      </div>
+      <div>
+        <small class="muted" style="font-size:9px;display:block">Số ngày (0=VV)</small>
+        <input data-ep-field="days" type="number" min="0" value="5" style="padding:7px 9px;font-size:11px">
+      </div>
+      <div>
+        <small class="muted" style="font-size:9px;display:block">Giá riêng (VND)</small>
+        <input data-ep-field="price" type="number" min="0" step="1000" value="30000" style="padding:7px 9px;font-size:11px;color:var(--cyan);font-weight:800">
+      </div>
+      <label class="check-field" style="margin:14px 0 0;font-size:10px;white-space:nowrap">
+        <input type="checkbox" data-ep-field="active" checked> Bán
+      </label>
+    `;
+    wrap.appendChild(row);
+    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
   $('editorKeyFileInput')?.addEventListener('change', async e => {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -2916,6 +3220,17 @@ $('editorForm').addEventListener('submit', async e => {
       else if (type === 'number') val = el.value === '' ? 0 : Number(el.value);
       else val = el.value.trim();
       obj[k] = val;
+    }
+
+    const dlFileInput = form.querySelector('input[type="file"][data-download-file-key]');
+    const dlFile = dlFileInput?.files?.[0];
+    if (dlFile) {
+      if (dlFile.size > 150 * 1024 * 1024) throw new Error('Tệp tải lên vượt quá giới hạn 150 MB.');
+      const safeName = dlFile.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-90);
+      const token = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+      const objectRef = storageRef(storage, `public/downloads/${token}-${safeName}`);
+      await uploadBytes(objectRef, dlFile, { contentType: dlFile.type || 'application/octet-stream' });
+      obj[dlFileInput.dataset.downloadFileKey] = await getDownloadURL(objectRef);
     }
 
     const fileInput = form.querySelector('input[type="file"][data-image-key]');
@@ -2976,6 +3291,34 @@ $('editorForm').addEventListener('submit', async e => {
       if (!obj.sortOrder) obj.sortOrder = Date.now();
       editorId = push(ref(db, `store/${editorCollection}`)).key;
     }
+    if (editorCollection === 'products') {
+      const customPlans = {};
+      let idxOrder = 1;
+      form.querySelectorAll('.editor-prod-plan-row').forEach(row => {
+        const pid = row.dataset.epId;
+        const label = row.querySelector('[data-ep-field="label"]')?.value?.trim() || pid;
+        const days = Math.max(0, Number(row.querySelector('[data-ep-field="days"]')?.value) || 0);
+        const price = Math.max(0, Number(row.querySelector('[data-ep-field="price"]')?.value) || 0);
+        const active = Boolean(row.querySelector('[data-ep-field="active"]')?.checked);
+        customPlans[pid] = {
+          id: pid,
+          label,
+          name: `Key ${label}`,
+          days,
+          price,
+          active,
+          sortOrder: idxOrder++
+        };
+      });
+      if (Object.keys(customPlans).length > 0) {
+        obj.customPlans = customPlans;
+        await set(ref(db, `store/productPlans/${editorId}`), customPlans);
+        const activePrices = Object.values(customPlans).filter(p => p.active !== false && Number(p.price) > 0).map(p => Number(p.price));
+        if (activePrices.length > 0 && (!obj.priceFrom || Number(obj.priceFrom) <= 0)) {
+          obj.priceFrom = Math.min(...activePrices);
+        }
+      }
+    }
     await set(ref(db, `store/${editorCollection}/${editorId}`), obj);
     if (editorCollection === 'products') {
       const qPlan = form.elements._quickKeyPlanId?.value || '1d';
@@ -3018,29 +3361,85 @@ async function deleteItem(coll, id) {
 }
 
 function renderPlansPanel() {
-  const cur = store.keyPlans || {};
-  const list = presets.map(p => ({...p, ...(cur[p.id] || {})}));
+  const prods = entries(store.products);
+  if (!selectedPlanProductId && prods.length > 0) {
+    selectedPlanProductId = prods[0].id;
+  }
+  const targetId = selectedPlanProductId || '__global__';
+  const targetProd = prods.find(p => p.id === targetId);
+  const list = getEffectivePlansList(targetId === '__global__' ? '' : targetId);
+
   return `
+    <div class="notice">
+      <b>Tuỳ chỉnh Giá &amp; Thời hạn riêng cho từng sản phẩm:</b> Chọn sản phẩm ở ô bên dưới để đặt bảng giá và các gói thời hạn riêng biệt cho sản phẩm đó (hoặc chọn <i>Bảng giá mặc định chung</i>).
+    </div>
+
     <div class="panel glass">
       <div class="panel-head">
         <div>
-          <h2>Thời hạn và giá key</h2>
-          <p>Chỉnh nhãn, tên gói, giá bán và bật/tắt từng gói. Giá nhập là VND.</p>
+          <h2>1. Chọn Sản Phẩm Cần Chỉnh Giá &amp; Thời Hạn Key</h2>
+          <p>Đang chỉnh sửa bảng giá cho: <b style="color:var(--cyan)">${esc(targetProd ? targetProd.name : 'Bảng giá mặc định chung (Toàn shop)')}</b></p>
         </div>
-        <button type="button" class="btn secondary small" id="seedPlans">Tạo gói mặc định còn thiếu</button>
+        <div class="action-row">
+          <button type="button" class="btn secondary small" id="copyPlansToAllProductsBtn">Áp dụng bảng giá này cho tất cả sản phẩm</button>
+        </div>
+      </div>
+      <div class="field" style="margin:0">
+        <label>CHỌN SẢN PHẨM / MENU ĐỂ CHỈNH GIÁ RIÊNG</label>
+        <select id="planTargetProductSelect">
+          ${prods.map(p => `<option value="${esc(p.id)}" ${p.id === targetId ? 'selected' : ''}>Sản phẩm: ${esc(p.name)} (Bảng giá riêng)</option>`).join('')}
+          <option value="__global__" ${targetId === '__global__' ? 'selected' : ''}>Cấu hình mặc định chung (Áp dụng cho sản phẩm chưa chỉnh riêng)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>2. Thêm thời hạn &amp; mức giá mới cho ${esc(targetProd ? targetProd.name : 'Toàn shop')}</h2>
+          <p>Tạo thêm bất kỳ thời hạn key nào bạn muốn (VD: 1 ngày, 2 ngày, 3 ngày, 5 ngày, 14 ngày, 60 ngày, Vĩnh viễn…).</p>
+        </div>
+      </div>
+      <form id="addCustomPlanForm" class="stock-controls" style="align-items:end">
+        <div class="field" style="margin:0">
+          <label>NHÃN THỜI HẠN (VD: 1 ngày, 3 ngày, 7 ngày)</label>
+          <input name="customLabel" required placeholder="Ví dụ: 3 ngày (Vượt 2 link)">
+        </div>
+        <div class="field" style="margin:0">
+          <label>SỐ NGÀY (NHẬP 0 NẾU VĨNH VIỄN)</label>
+          <input name="customDays" type="number" min="0" value="1" required>
+        </div>
+        <div class="field" style="margin:0">
+          <label>GIÁ BÁN CỦA SẢN PHẨM NÀY (VND)</label>
+          <input name="customPrice" type="number" min="0" step="1000" value="10000" required>
+        </div>
+        <div class="field" style="margin:0">
+          <button type="submit" class="btn primary" style="width:100%">+ Thêm thời hạn &amp; Giá</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-head">
+        <div>
+          <h2>3. Danh sách thời hạn &amp; giá của: ${esc(targetProd ? targetProd.name : 'Mặc định chung')} (${list.length} gói)</h2>
+          <p>Chỉnh nhãn thời hạn, số ngày, giá bán riêng và bật/tắt từng gói cho sản phẩm đang chọn.</p>
+        </div>
+        <button type="button" class="btn secondary small" id="seedPlans">Khôi phục 7 thời hạn chuẩn</button>
       </div>
       <div id="planEditor">
         ${list.map(p => `
-          <div class="plan-row" data-plan-row="${esc(p.id)}">
-            <div class="field"><label>Thời hạn</label><input value="${esc(p.label)}" data-field="label"></div>
+          <div class="plan-row" data-plan-row="${esc(p.id)}" style="grid-template-columns:1.1fr .9fr .6fr .9fr auto">
+            <div class="field"><label>Thời hạn hiển thị</label><input value="${esc(p.label)}" data-field="label"></div>
             <div class="field"><label>Tên gói</label><input value="${esc(p.name)}" data-field="name"></div>
-            <div class="field"><label>Giá (VND)</label><input type="number" min="0" step="1000" value="${Number(p.price) || 0}" data-field="price"></div>
+            <div class="field"><label>Số ngày (0=VV)</label><input type="number" min="0" value="${Number(p.days ?? (p.id === 'lifetime' ? 0 : 1))}" data-field="days"></div>
+            <div class="field"><label>Giá bán riêng (VND)</label><input type="number" min="0" step="1000" value="${Number(p.price) || 0}" data-field="price" style="color:var(--cyan);font-weight:800"></div>
             <label class="check-field" style="margin:0"><input type="checkbox" data-field="active" ${p.active === false ? '' : 'checked'}> Đang bán</label>
           </div>
         `).join('')}
       </div>
       <div class="settings-save">
-        <button type="button" class="btn primary" id="savePlans">Lưu bảng giá</button>
+        <button type="button" class="btn primary" id="savePlans">Lưu bảng giá của ${esc(targetProd ? targetProd.name : 'Toàn shop')}</button>
       </div>
     </div>
   `;
@@ -3048,33 +3447,64 @@ function renderPlansPanel() {
 
 async function seedPlans() {
   try {
-    const current = (await get(ref(db, 'store/keyPlans'))).val() || {};
-    for (const p of presets) if (!current[p.id]) current[p.id] = p;
-    await set(ref(db, 'store/keyPlans'), current);
-    toast('Đã bổ sung gói còn thiếu.');
+    const targetId = selectedPlanProductId || '__global__';
+    const current = { ...getEffectivePlansMap(targetId === '__global__' ? '' : targetId) };
+    for (const p of presets) {
+      if (!current[p.id]) current[p.id] = { ...p };
+    }
+    if (targetId && targetId !== '__global__') {
+      await set(ref(db, `store/productPlans/${targetId}`), current);
+      await set(ref(db, `store/products/${targetId}/customPlans`), current);
+    } else {
+      await set(ref(db, 'store/keyPlans'), current);
+    }
+    toast('Đã khôi phục đầy đủ 7 thời hạn chuẩn!');
   } catch (err) {
     toast('Lỗi cập nhật gói: ' + err.message);
   }
 }
 
-async function savePlans() {
-  const next = {...(store.keyPlans || {})};
+function collectCurrentPlanEditorRows(targetId) {
+  const next = { ...getEffectivePlansMap(targetId === '__global__' ? '' : targetId) };
+  let idx = 1;
   document.querySelectorAll('[data-plan-row]').forEach(row => {
     const id = row.dataset.planRow;
     const old = next[id] || presets.find(p => p.id === id) || {};
+    const daysEl = row.querySelector('[data-field="days"]');
+    const daysVal = daysEl ? Math.max(0, Number(daysEl.value) || 0) : (old.days ?? (id === 'lifetime' ? 0 : Number(id.replace('d', '')) || 0));
     next[id] = {
       ...old,
+      id,
       label: row.querySelector('[data-field="label"]').value.trim(),
       name: row.querySelector('[data-field="name"]').value.trim(),
       price: Math.max(0, Number(row.querySelector('[data-field="price"]').value) || 0),
       active: row.querySelector('[data-field="active"]').checked,
-      days: old.days ?? (id === 'lifetime' ? 0 : Number(id.replace('d', '')) || 0),
-      sortOrder: old.sortOrder || presets.find(p => p.id === id)?.sortOrder || 99
+      days: daysVal,
+      sortOrder: old.sortOrder || idx
     };
+    idx++;
   });
+  return next;
+}
+
+async function savePlans() {
+  const targetId = selectedPlanProductId || '__global__';
+  const next = collectCurrentPlanEditorRows(targetId);
   try {
-    await set(ref(db, 'store/keyPlans'), next);
-    toast('Đã cập nhật bảng giá.');
+    if (targetId && targetId !== '__global__' && store.products?.[targetId]) {
+      const activePrices = Object.values(next).filter(p => p.active !== false && Number(p.price) > 0).map(p => Number(p.price));
+      const minPrice = activePrices.length ? Math.min(...activePrices) : (store.products[targetId].priceFrom || 0);
+      await set(ref(db, `store/productPlans/${targetId}`), next);
+      await update(ref(db, `store/products/${targetId}`), {
+        customPlans: next,
+        priceFrom: minPrice,
+        updatedAt: Date.now()
+      });
+      toast(`Đã lưu bảng giá & thời hạn riêng cho sản phẩm "${store.products[targetId].name}"!`);
+    } else {
+      await set(ref(db, 'store/keyPlans'), next);
+      toast('Đã cập nhật bảng giá mặc định chung!');
+    }
   } catch (err) {
     toast('Không lưu được bảng giá: ' + err.message);
   }
@@ -3086,9 +3516,11 @@ function selectOptions(obj, selected) {
 
 function renderKeysPanel() {
   const ps = entries(store.products);
-  const pls = entries(store.keyPlans);
   const productVal = preselectedKeyProduct || $('keyFilterProduct')?.value || ps[0]?.id || '';
-  const planVal = $('keyFilterPlan')?.value || pls[0]?.id || '';
+  const pls = getEffectivePlansList(productVal);
+  const planVal = (preselectedKeyPlan && pls.some(p => p.id === preselectedKeyPlan))
+    ? preselectedKeyPlan
+    : ($('keyFilterPlan')?.value && pls.some(p => p.id === $('keyFilterPlan').value) ? $('keyFilterPlan').value : (pls[0]?.id || '1d'));
   const byPlan = vault[productVal]?.[planVal] || {};
   const rows = entries(byPlan).sort((a, b) => (Number(b.addedAt) || 0) - (Number(a.addedAt) || 0));
   const table = rows.length ? rows.map(k => `
@@ -3111,14 +3543,45 @@ function renderKeysPanel() {
       </div>
       <form id="addKeysForm">
         <div class="stock-controls">
-          <div class="field"><label>SẢN PHẨM / MENU</label><select name="productId" id="keyProduct" required>${selectOptions(store.products, productVal)}</select></div>
-          <div class="field"><label>THỜI HẠN KEY</label><select name="planId" id="keyPlan" required>${pls.map(p => `<option value="${esc(p.id)}" ${p.id === planVal ? 'selected' : ''}>${esc(p.label || p.name || p.id)}</option>`).join('')}</select></div>
+          <div class="field">
+            <label>SẢN PHẨM / MENU</label>
+            <select name="productId" id="keyProduct">${selectOptions(store.products, productVal)}</select>
+          </div>
+          <div class="field">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px">
+              <label style="margin:0">THỜI HẠN KEY</label>
+              <button type="button" class="btn ghost small" id="toggleQuickPlanBtn" style="padding:4px 9px;font-size:10px;border-radius:8px">+ Thêm thời hạn mới</button>
+            </div>
+            <select name="planId" id="keyPlan">${pls.map(p => `<option value="${esc(p.id)}" ${p.id === planVal ? 'selected' : ''}>${esc(p.label || p.name || p.id)} · ${fmt(p.price)} (${Number(p.days) > 0 ? p.days + ' ngày' : 'Vĩnh viễn'})</option>`).join('')}</select>
+          </div>
+        </div>
+        <div id="quickAddPlanBox" class="hidden" style="margin:0 0 14px;padding:12px;border-radius:14px;background:rgba(112,240,237,.06);border:1px solid rgba(112,240,237,.22)">
+          <div style="font-size:11px;font-weight:800;color:var(--cyan);margin-bottom:8px">THÊM NHANH THỜI HẠN KEY MỚI</div>
+          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;align-items:end">
+            <div class="field" style="margin:0">
+              <label>Nhãn hiển thị (VD: 1 ngày, 3 ngày)</label>
+              <input id="quickPlanLabel" placeholder="VD: 3 ngày (Vượt 2 link)">
+            </div>
+            <div class="field" style="margin:0">
+              <label>Số ngày (0 = Vĩnh viễn)</label>
+              <input id="quickPlanDays" type="number" min="0" value="1">
+            </div>
+            <div class="field" style="margin:0">
+              <label>Giá bán (VND)</label>
+              <input id="quickPlanPrice" type="number" min="0" step="1000" value="10000">
+            </div>
+            <button type="button" class="btn secondary small" id="saveQuickPlanBtn" style="height:40px">Lưu thời hạn</button>
+          </div>
         </div>
         <div class="field">
           <label>UPLOAD FILE KEY (.TXT / .CSV) HOẶC DÁN TRỰC TIẾP (MỖI DÒNG 1 KEY)</label>
           <input type="file" id="keyFileUpload" accept=".txt,.csv" style="margin-bottom:8px;font-size:11px">
           <textarea name="keyValues" id="keyValuesTextarea" required placeholder="KEY-ABCD-1234&#10;KEY-EFGH-5678&#10;KEY-IJKL-9012" style="min-height:130px"></textarea>
         </div>
+        <label class="check-field" style="margin-bottom:12px">
+          <input type="checkbox" name="alsoSyncFreeVault" id="alsoSyncFreeVault" checked>
+          Đồng thời thêm bản sao vào Kho Key Free Vượt Link (dùng khi bạn muốn nạp cùng lúc cho cả mục UpKey Free 1 ngày / 3 ngày)
+        </label>
         <button class="btn primary" type="submit">Upload &amp; Lưu key vào kho</button>
       </form>
     </div>
@@ -3143,11 +3606,18 @@ function renderKeysPanel() {
   `;
 }
 
+let preselectedKeyPlan = '';
+function getFreeTiersList() {
+  return getAdminFreeTiers();
+}
 async function addKeys(e) {
   e.preventDefault();
   const f = e.currentTarget;
-  const productId = f.elements.productId.value;
-  const planId = f.elements.planId.value;
+  const ps = entries(store.products);
+  const productId = f.elements.productId?.value || ps[0]?.id || '';
+  const pls = getEffectivePlansList(productId);
+  const planId = f.elements.planId?.value || pls[0]?.id || '1d';
+  const syncFree = Boolean(f.elements.alsoSyncFreeVault?.checked);
   const values = [...new Set(f.elements.keyValues.value.split(/\r?\n/).map(x => x.trim()).filter(Boolean))];
   if (!productId || !planId || !values.length) {
     toast('Chọn sản phẩm, thời hạn và nhập ít nhất một key.');
@@ -3159,6 +3629,8 @@ async function addKeys(e) {
   }
   try {
     const updates = {};
+    const planObj = getEffectivePlansMap(productId)[planId] || {};
+    const matchedFreeTier = getAdminFreeTiers().find(t => t.planId === planId || t.id === planId || (Number(planObj.days) > 0 && Number(t.days) === Number(planObj.days)) || (planId === '1d' && Number(t.days) === 1) || (planId === '3d' && Number(t.days) === 3)) || getAdminFreeTiers()[0];
     for (const v of values) {
       const id = push(ref(db, `keyVault/${productId}/${planId}`)).key;
       updates[`keyVault/${productId}/${planId}/${id}`] = {
@@ -3167,9 +3639,22 @@ async function addKeys(e) {
         addedAt: Date.now(),
         addedBy: currentUser?.uid || 'admin-fixed'
       };
+      if (syncFree && matchedFreeTier) {
+        const fid = push(ref(db, `freeKeyVault/${matchedFreeTier.id}`)).key;
+        updates[`freeKeyVault/${matchedFreeTier.id}/${fid}`] = {
+          value: v,
+          status: 'available',
+          tierId: matchedFreeTier.id,
+          planId,
+          productId,
+          addedAt: Date.now()
+        };
+      }
     }
+    preselectedKeyProduct = productId;
+    preselectedKeyPlan = planId;
     await update(ref(db), updates);
-    toast(`Đã thêm ${values.length} key vào kho.`);
+    toast(`Đã thêm ${values.length} key (${getEffectivePlansMap()[planId]?.label || planId}) vào kho!`);
     f.elements.keyValues.value = '';
     renderPanel('keys');
   } catch (err) {
@@ -3223,7 +3708,7 @@ function orderTable(all, compact = false) {
               </td>
               <td>
                 <span class="item-main">${esc(o.productName || store.products?.[o.productId]?.name || 'Sản phẩm')}</span>
-                <span class="item-sub">${esc(store.keyPlans?.[o.planId]?.label || o.planLabel || o.planId || '')} · ${o.type === 'free' ? 'KEY FREE' : 'KEY BÁN'}</span>
+                <span class="item-sub">${esc(getEffectivePlansMap()[o.planId]?.label || o.planLabel || o.planId || '')} · ${o.type === 'free' ? 'KEY FREE' : 'KEY BÁN'}</span>
               </td>
               <td>${fmt(o.price)}</td>
               <td>${statusPill(o.status)}</td>
@@ -3391,7 +3876,7 @@ function renderFreeKeyManagerPanel() {
   const minBypassSeconds = cfg.minBypassSeconds ?? 12;
   const maxKeysPerIp24h = cfg.maxKeysPerIp24h ?? 1;
   const maxKeysPerDevice24h = cfg.maxKeysPerDevice24h ?? 2;
-  const autoGenerateIfEmpty = cfg.autoGenerateIfEmpty !== false;
+  const autoGenerateIfEmpty = Boolean(cfg.autoGenerateIfEmpty);
 
   const tiers = getAdminFreeTiers();
   const selectedTier = preselectedFreeTier || tiers[0]?.id || 'tier_1d';
@@ -4140,6 +4625,92 @@ async function processDeposit(uid, id, action) {
     toast(`Đã duyệt và cộng +${fmt(amount)} vào tài khoản khách!`);
   }
 }
+
+
+function openQuickDownloadModal(productId) {
+  const p = store.products?.[productId];
+  if (!p) return;
+  $('dlTargetProductId').value = productId;
+  $('dlModalTitle').textContent = `Gắn link tải: ${p.name || 'Sản phẩm'}`;
+  $('dlUrlInput').value = p.downloadUrl || '';
+  $('dlBackupUrlInput').value = p.downloadBackupUrl || '';
+  $('dlBtnTextInput').value = p.downloadButtonText || 'Tải sản phẩm';
+  $('dlVersionInput').value = p.downloadVersion || '';
+  if ($('dlFileInput')) $('dlFileInput').value = '';
+  $('downloadLinkModalBg').classList.add('open');
+  syncModalOpenClass();
+}
+
+function closeQuickDownloadModal() {
+  $('downloadLinkModalBg')?.classList.remove('open');
+  syncModalOpenClass();
+}
+
+$('dlModalClose')?.addEventListener('click', closeQuickDownloadModal);
+$('dlModalCancel')?.addEventListener('click', closeQuickDownloadModal);
+$('downloadLinkModalBg')?.addEventListener('click', e => {
+  if (e.target === $('downloadLinkModalBg')) closeQuickDownloadModal();
+});
+
+$('dlClearBtn')?.addEventListener('click', async () => {
+  const pid = $('dlTargetProductId').value;
+  if (!pid || !store.products?.[pid]) return;
+  const ok = await askConfirm(`Xoá link tải khỏi sản phẩm "${store.products[pid].name}"?`);
+  if (!ok) return;
+  try {
+    await update(ref(db, `store/products/${pid}`), {
+      downloadUrl: '',
+      downloadBackupUrl: '',
+      downloadVersion: '',
+      updatedAt: Date.now()
+    });
+    closeQuickDownloadModal();
+    toast('Đã xoá link tải của sản phẩm.');
+  } catch (err) {
+    toast('Lỗi xoá link tải: ' + err.message);
+  }
+});
+
+$('quickDownloadLinkForm')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  const pid = $('dlTargetProductId').value;
+  if (!pid || !store.products?.[pid]) return;
+  const btn = $('dlModalSubmit');
+  btn.disabled = true;
+  btn.textContent = 'Đang lưu…';
+  try {
+    let downloadUrl = $('dlUrlInput').value.trim();
+    const backupUrl = $('dlBackupUrlInput').value.trim();
+    const btnText = $('dlBtnTextInput').value.trim() || 'Tải sản phẩm';
+    const version = $('dlVersionInput').value.trim();
+    const file = $('dlFileInput')?.files?.[0];
+    if (file) {
+      if (file.size > 150 * 1024 * 1024) throw new Error('Tệp tải lên vượt quá 150 MB.');
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-90);
+      const token = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+      const objectRef = storageRef(storage, `public/downloads/${token}-${safeName}`);
+      await uploadBytes(objectRef, file, { contentType: file.type || 'application/octet-stream' });
+      downloadUrl = await getDownloadURL(objectRef);
+    }
+    if (!downloadUrl && !backupUrl) {
+      throw new Error('Vui lòng dán link tải sản phẩm hoặc chọn tệp tải lên.');
+    }
+    await update(ref(db, `store/products/${pid}`), {
+      downloadUrl: downloadUrl || backupUrl,
+      downloadBackupUrl: backupUrl,
+      downloadButtonText: btnText,
+      downloadVersion: version,
+      updatedAt: Date.now()
+    });
+    closeQuickDownloadModal();
+    toast(`Đã gắn link tải cho sản phẩm "${store.products[pid].name}" thành công!`);
+  } catch (err) {
+    toast('Lỗi lưu link tải: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Lưu Link Tải Sản Phẩm';
+  }
+});
 
 function openBalanceModal(uid, mode) {
   const u = usersMap[uid] || {};
