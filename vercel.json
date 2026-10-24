@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/api/bank", "destination": "/api/Bank.js" },
+    { "source": "/api/bank.js", "destination": "/api/Bank.js" },
+    { "source": "/api/Bank", "destination": "/api/Bank.js" },
+    { "source": "/api/Bank.js", "destination": "/api/Bank.js" },
+    { "source": "/bank.js", "destination": "/api/Bank.js" },
+    { "source": "/api/napthe", "destination": "/api/Napthe.js" },
+    { "source": "/api/napthe.js", "destination": "/api/Napthe.js" },
+    { "source": "/api/Napthe", "destination": "/api/Napthe.js" },
+    { "source": "/api/Napthe.js", "destination": "/api/Napthe.js" },
+    { "source": "/napthe.js", "destination": "/api/Napthe.js" }
+  ]
+}

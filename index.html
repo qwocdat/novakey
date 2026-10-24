@@ -10,8 +10,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad&render=explicit" async defer></script>
-<script src="./api/Bank.js" charset="utf-8" defer></script>
-<script src="./api/Napthe.js" charset="utf-8" defer></script>
 <style>
 :root{
   color-scheme:dark;
@@ -7406,18 +7404,36 @@ $('cardRechargeForm')?.addEventListener('submit', async e => {
   btn.textContent = 'Đang gửi thẻ lên hệ thống…';
 
   try {
-    let gtfResult = { sentToApi: false, status: 99, message: 'Đang chờ kiểm tra thẻ' };
-    if (window.KEYNOVA_NAPTHE && typeof window.KEYNOVA_NAPTHE.submitCardToGachTheFast === 'function') {
-      const s = store.settings || {};
-      gtfResult = await window.KEYNOVA_NAPTHE.submitCardToGachTheFast({
-        telco,
-        code,
-        serial,
-        amount,
-        requestId,
-        partnerId: s.gachthefastPartnerId || '',
-        partnerKey: s.gachthefastPartnerKey || ''
+    let gtfResult = { sentToApi: false, status: 99, message: 'Đang chờ GachTheFast kiểm tra thẻ' };
+    const s = store.settings || {};
+    try {
+      const apiRes = await fetch('./api/Napthe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'charging',
+          uid: currentUser.uid,
+          accountName: exactAccountName,
+          telco,
+          code,
+          serial,
+          amount,
+          request_id: requestId,
+          partner_id: s.gachthefastPartnerId || '',
+          partner_key: s.gachthefastPartnerKey || ''
+        })
       });
+      if (apiRes.ok) {
+        const apiJson = await apiRes.json();
+        gtfResult = {
+          sentToApi: Boolean(apiJson.sentToGateway),
+          status: apiJson.gtfStatus || 99,
+          message: apiJson.message || 'Đã gửi thẻ lên GachTheFast',
+          transId: apiJson.trans_id || ''
+        };
+      }
+    } catch (apiErr) {
+      console.warn('Fallback lưu Firebase trực tiếp khi gọi /api/Napthe:', apiErr);
     }
     const cardRef = push(ref(db, `cardCharges/${currentUser.uid}`));
     await set(cardRef, {
