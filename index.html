@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad&render=explicit" async defer></script>
-<script src="./bank.js" charset="utf-8" defer></script>
-<script src="./napthe.js" charset="utf-8" defer></script>
+<script src="./api/Bank.js" charset="utf-8" defer></script>
+<script src="./api/Napthe.js" charset="utf-8" defer></script>
 <style>
 :root{
   color-scheme:dark;
@@ -2492,30 +2492,41 @@ h1 span,.gradient-text{
       <div>
         <div class="kicker">06 / FREE KEY &amp; ANTI-BYPASS SHORTLINK</div>
         <h2 id="freeTitle">Vượt Link Nhận Key Miễn Phí (24H)</h2>
-        <p id="freeDescription">Chọn gói thời hạn key muốn nhận (ví dụ: Vượt 1 link = Key 1 ngày, Vượt 2 link = Key 3 ngày). Tích hợp chống Bypass, mỗi IP tạo 1 lần/24h và giới hạn tối đa 2 key/thiết bị/ngày.</p>
+        <p id="freeDescription">Chọn đúng Danh mục Game, Sản phẩm/Menu và Gói thời hạn key muốn nhận (VD: Vượt 1 link = Key 1 ngày, Vượt 2 link = Key 3 ngày). Tích hợp chống Bypass, mỗi IP tạo 1 lần/24h và giới hạn tối đa 2 key/thiết bị/ngày.</p>
       </div>
       <span class="pill pill-green" id="freeQuotaStatusBadge">Đang kiểm tra IP &amp; Thiết bị…</span>
     </div>
 
+    <!-- Thanh lọc nhanh Danh mục Game cho Key Free -->
+    <div class="category-filter-bar" id="freeCategoryFilterBar" aria-label="Phân loại danh mục Key Free"></div>
+
     <div class="free-bypass-shell">
-      <!-- Left: Select Tier & Start Shortlink Bypass -->
+      <!-- Left: Select Category, Game & Tier + Start Shortlink Bypass -->
       <div class="wallet-card glass">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
           <div>
-            <span class="kicker">CHỌN GÓI VƯỢT LINK NHẬN KEY</span>
-            <h3 style="font-size:17px;margin:4px 0 0">Cấu hình vượt link tự động</h3>
+            <span class="kicker">PHÂN LOẠI DANH MỤC &amp; GAME NHẬN KEY FREE</span>
+            <h3 style="font-size:17px;margin:4px 0 0">Chọn Danh mục · Game &amp; Gói vượt link</h3>
           </div>
           <span class="pill pill-blue" id="freeStockCounterBadge">Kho key free: Sẵn sàng</span>
         </div>
 
-        <div class="field">
-          <label for="freeProductSelect">CHỌN SẢN PHẨM / MENU ÁP DỤNG</label>
-          <select id="freeProductSelect"></select>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">
+          <div class="field" style="margin:6px 0">
+            <label for="freeCategorySelect">1. CHỌN DANH MỤC GAME</label>
+            <select id="freeCategorySelect"></select>
+          </div>
+          <div class="field" style="margin:6px 0">
+            <label for="freeProductSelect">2. CHỌN GAME / SẢN PHẨM NHẬN KEY</label>
+            <select id="freeProductSelect"></select>
+          </div>
         </div>
+
+        <div id="freeSelectedGameClassificationBox" style="margin:10px 0"></div>
         <div id="freeSelectedProductDownloadBox"></div>
 
         <div class="field">
-          <label for="freeTierSelect">CHỌN GÓI VƯỢT LINK (SỐ LẦN VƯỢT &amp; THỜI HẠN KEY)</label>
+          <label for="freeTierSelect">3. CHỌN GÓI VƯỢT LINK (SỐ LẦN VƯỢT &amp; THỜI HẠN KEY)</label>
           <select id="freeTierSelect"></select>
         </div>
 
@@ -5083,6 +5094,7 @@ let freeIpClaimRecord = null;
 let freeDeviceClaimsMap = {};
 let activeBypassSession = null;
 let free24hCountdownInterval = null;
+let activeFreeCategoryFilter = '';
 
 function computeDeviceFingerprint() {
   try {
@@ -5156,38 +5168,141 @@ function markKeyIdClaimedLocally(keyId) {
   } catch {}
 }
 
-function countAvailableKeysForTierAndProduct(tier, prodId = '') {
+/**
+ * Xác định thông tin phân loại Danh mục & Game của một sản phẩm hoặc key
+ */
+function getProductCategoryMeta(prodId = '', explicitCatId = '') {
+  const prod = (prodId && prodId !== 'default' && prodId !== 'all') ? products[prodId] : null;
+  const resolvedCatId = (prod?.categoryId && categories[prod.categoryId])
+    ? prod.categoryId
+    : (explicitCatId && explicitCatId !== 'all' && categories[explicitCatId] ? explicitCatId : (prod?.categoryId || explicitCatId || ''));
+  const catObj = resolvedCatId ? categories[resolvedCatId] : null;
+  return {
+    productId: prod ? prod.id : (prodId || 'default'),
+    productName: prod ? (prod.name || 'Game / Menu') : 'Tất cả Game trong danh mục',
+    categoryId: resolvedCatId || 'all',
+    categoryName: catObj?.name || prod?.categoryName || 'Tất cả danh mục'
+  };
+}
+
+/**
+ * Kiểm tra xem 1 key trong freeKeyVault có thuộc đúng Game (productId) và Danh mục (categoryId) đang chọn không
+ */
+function doesFreeVaultKeyMatchSelection(k, prodId = '', catId = '') {
+  if (!k || typeof k !== 'object') return false;
+  const kProd = String(k.productId || '').trim();
+  const kCat = String(k.categoryId || (kProd && products[kProd]?.categoryId) || '').trim();
+  const targetProd = (prodId && prodId !== 'default' && prodId !== 'all') ? String(prodId).trim() : '';
+  const targetCat = (catId && catId !== 'all' && catId !== 'default')
+    ? String(catId).trim()
+    : (targetProd && products[targetProd]?.categoryId ? String(products[targetProd].categoryId).trim() : '');
+
+  // Nếu người dùng đã chọn cụ thể 1 Game/Sản phẩm:
+  if (targetProd) {
+    if (kProd && kProd !== 'default' && kProd !== 'all') {
+      return kProd === targetProd;
+    }
+    // Nếu key không gán riêng cho game nào (key chung), kiểm tra xem nó có gán riêng danh mục không
+    if (kCat && kCat !== 'default' && kCat !== 'all' && targetCat) {
+      return kCat === targetCat;
+    }
+    return true;
+  }
+
+  // Nếu người dùng lọc theo Danh mục:
+  if (targetCat) {
+    if (kCat && kCat !== 'default' && kCat !== 'all') {
+      return kCat === targetCat;
+    }
+    return !kProd || kProd === 'default' || kProd === 'all';
+  }
+
+  return true;
+}
+
+function countAvailableKeysForTierAndProduct(tier, prodId = '', catId = '') {
   if (!tier) return 0;
   const localClaimed = getLocallyClaimedKeyIds();
   const seenValues = new Set();
-  const addItems = obj => {
-    for (const [id, k] of Object.entries(obj || {})) {
-      if (!k || typeof k !== 'object') continue;
-      if ((k.status || 'available') === 'available' && !localClaimed[id] && k.value) {
+  const meta = getProductCategoryMeta(prodId, catId);
+  const effectiveProdId = (meta.productId && meta.productId !== 'default' && meta.productId !== 'all') ? meta.productId : '';
+  const effectiveCatId = (meta.categoryId && meta.categoryId !== 'all' && meta.categoryId !== 'default') ? meta.categoryId : '';
+
+  // 1. Đếm key trong freeKeyVault[tier.id] khớp đúng Game & Danh mục
+  for (const [id, k] of Object.entries(freeKeyVaultData[tier.id] || {})) {
+    if (!k || typeof k !== 'object') continue;
+    if ((k.status || 'available') === 'available' && !localClaimed[id] && k.value) {
+      if (doesFreeVaultKeyMatchSelection(k, effectiveProdId, effectiveCatId)) {
         seenValues.add(String(k.value).trim());
       }
     }
-  };
-  // 1. From freeKeyVault[tier.id]
-  addItems(freeKeyVaultData[tier.id]);
-  // 2. From productKeyVaultData
+  }
+
+  // 2. Đếm key trong productKeyVaultData (keyVault/{prodId}/{planId}) của đúng Game/Danh mục đó
   const candidatePlans = [...new Set([tier.planId, `${tier.days || 1}d`].filter(Boolean))];
-  const targetProds = (prodId && prodId !== 'default' && productKeyVaultData[prodId])
-    ? [prodId]
-    : Object.keys(productKeyVaultData || {});
+  const allProdList = activeRows(products);
+  let targetProds = [];
+  if (effectiveProdId) {
+    targetProds = [effectiveProdId];
+  } else if (effectiveCatId) {
+    targetProds = allProdList.filter(p => doesProductMatchCategory(p, effectiveCatId, activeRows(categories))).map(p => p.id);
+  } else {
+    targetProds = Object.keys(productKeyVaultData || {});
+  }
+
   for (const pid of targetProds) {
     const byPlan = productKeyVaultData[pid] || {};
     for (const plId of candidatePlans) {
-      addItems(byPlan[plId]);
-    }
-    // If no keys under exact planId, also count available keys under other plans of that product
-    if (seenValues.size === 0) {
-      for (const plObj of Object.values(byPlan)) {
-        addItems(plObj);
+      for (const [id, k] of Object.entries(byPlan[plId] || {})) {
+        if (k && (k.status || 'available') === 'available' && !localClaimed[id] && k.value) {
+          seenValues.add(String(k.value).trim());
+        }
       }
     }
   }
+
   return seenValues.size;
+}
+
+function countTotalFreeKeysForCategory(catId = '') {
+  const tiers = getFreeTiersList();
+  const catList = activeRows(categories);
+  const allProds = activeRows(products);
+  const prodsInCat = catId
+    ? allProds.filter(p => doesProductMatchCategory(p, catId, catList))
+    : allProds;
+
+  let total = 0;
+  for (const t of tiers) {
+    if (!catId) {
+      total += countAvailableKeysForTierAndProduct(t, '', '');
+    } else if (prodsInCat.length > 0) {
+      const seen = new Set();
+      const localClaimed = getLocallyClaimedKeyIds();
+      for (const [id, k] of Object.entries(freeKeyVaultData[t.id] || {})) {
+        if (k && (k.status || 'available') === 'available' && !localClaimed[id] && k.value) {
+          if (doesFreeVaultKeyMatchSelection(k, '', catId) || prodsInCat.some(p => p.id === k.productId)) {
+            seen.add(String(k.value).trim());
+          }
+        }
+      }
+      const candidatePlans = [...new Set([t.planId, `${t.days || 1}d`].filter(Boolean))];
+      for (const p of prodsInCat) {
+        const byPlan = productKeyVaultData[p.id] || {};
+        for (const plId of candidatePlans) {
+          for (const [id, k] of Object.entries(byPlan[plId] || {})) {
+            if (k && (k.status || 'available') === 'available' && !localClaimed[id] && k.value) {
+              seen.add(String(k.value).trim());
+            }
+          }
+        }
+      }
+      total += seen.size;
+    } else {
+      total += countAvailableKeysForTierAndProduct(t, '', catId);
+    }
+  }
+  return total;
 }
 
 function getFreeTiersList() {
@@ -5230,25 +5345,92 @@ function formatCountdown24h(expiresAt) {
 function renderOffers() {
   const tiers = getFreeTiersList();
   const cfg = getFreeConfig();
-  const prodList = activeRows(products);
+  const catList = activeRows(categories);
+  const allProdList = activeRows(products);
+
+  // 1. Render thanh lọc nhanh Danh mục ở đầu mục Key Free
+  const catFilterBar = $('freeCategoryFilterBar');
+  if (catFilterBar) {
+    if (catList.length > 0) {
+      catFilterBar.innerHTML = `
+        <button type="button" class="cat-filter-pill ${!activeFreeCategoryFilter ? 'active' : ''}" data-free-cat="">
+          <span>Tất cả danh mục (${allProdList.length} game)</span>
+        </button>
+        ${catList.map(c => {
+          const gamesCount = allProdList.filter(p => doesProductMatchCategory(p, c.id, catList)).length;
+          return `
+            <button type="button" class="cat-filter-pill ${activeFreeCategoryFilter === c.id ? 'active' : ''}" data-free-cat="${esc(c.id)}">
+              <span>${esc(c.name || 'Danh mục')} (${gamesCount} game)</span>
+            </button>
+          `;
+        }).join('')}
+      `;
+      catFilterBar.querySelectorAll('[data-free-cat]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeFreeCategoryFilter = btn.dataset.freeCat || '';
+          if ($('freeCategorySelect')) {
+            $('freeCategorySelect').value = activeFreeCategoryFilter || 'all';
+            syncCustomSelectUI($('freeCategorySelect'));
+          }
+          renderOffers();
+        });
+      });
+    } else {
+      catFilterBar.innerHTML = '';
+    }
+  }
+
+  // 2. Render ô chọn Danh mục Game (#freeCategorySelect)
+  const catSel = $('freeCategorySelect');
+  if (catSel) {
+    const targetVal = activeFreeCategoryFilter || 'all';
+    catSel.innerHTML = `
+      <option value="all">Tất cả danh mục (${allProdList.length} game)</option>
+      ${catList.map(c => {
+        const cnt = allProdList.filter(p => doesProductMatchCategory(p, c.id, catList)).length;
+        return `<option value="${esc(c.id)}">${esc(c.name || 'Danh mục')} (${cnt} game)</option>`;
+      }).join('')}
+    `;
+    if (Array.from(catSel.options).some(o => o.value === targetVal)) {
+      catSel.value = targetVal;
+    }
+    syncCustomSelectUI(catSel);
+  }
+
+  // 3. Lọc danh sách Game / Sản phẩm theo Danh mục đang chọn (#freeProductSelect)
+  let filteredProds = activeFreeCategoryFilter
+    ? allProdList.filter(p => doesProductMatchCategory(p, activeFreeCategoryFilter, catList))
+    : allProdList;
+  if (activeFreeCategoryFilter && filteredProds.length === 0 && allProdList.length > 0) {
+    const unassigned = allProdList.filter(p => !p.categoryId || !categories[p.categoryId]);
+    filteredProds = unassigned.length > 0 ? unassigned : allProdList;
+  }
 
   const prodSel = $('freeProductSelect');
   if (prodSel) {
-    const prevProd = prodSel.value;
-    prodSel.innerHTML = prodList.length
-      ? prodList.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')
-      : '<option value="default">Tất cả sản phẩm (Key Free Chung)</option>';
+    const prevProd = prodSel.value || (activeBypassSession?.productId || '');
+    prodSel.innerHTML = filteredProds.length
+      ? filteredProds.map(p => {
+          const catName = categories[p.categoryId]?.name || (activeFreeCategoryFilter && categories[activeFreeCategoryFilter]?.name) || 'Game / Menu';
+          return `<option value="${esc(p.id)}">[${esc(catName)}] ${esc(p.name)}</option>`;
+        }).join('')
+      : `<option value="default">${activeFreeCategoryFilter && categories[activeFreeCategoryFilter]?.name ? `[${esc(categories[activeFreeCategoryFilter].name)}] Key Free Chung` : 'Tất cả Game (Key Free Chung)'}</option>`;
     if (prevProd && Array.from(prodSel.options).some(o => o.value === prevProd)) {
       prodSel.value = prevProd;
+    } else if (prodSel.options.length > 0) {
+      prodSel.value = prodSel.options[0].value;
     }
     syncCustomSelectUI(prodSel);
   }
 
+  // 4. Render ô chọn Gói Vượt Link (#freeTierSelect) theo đúng Game & Danh mục
+  const currentProdId = $('freeProductSelect')?.value || '';
+  const currentCatId = activeFreeCategoryFilter || products[currentProdId]?.categoryId || '';
   const tierSel = $('freeTierSelect');
   if (tierSel) {
     const prevTier = tierSel.value || (activeBypassSession?.tierId || tiers[0]?.id || '');
     tierSel.innerHTML = tiers.map(t => {
-      const avail = countAvailableKeysForTierAndProduct(t, $('freeProductSelect')?.value || '');
+      const avail = countAvailableKeysForTierAndProduct(t, currentProdId, currentCatId);
       const stockText = avail > 0 ? `Còn ${avail} key` : (cfg.autoGenerateIfEmpty ? 'Tự động cấp key' : 'Hết key');
       return `<option value="${esc(t.id)}">${esc(t.title || `Vượt ${t.linksRequired} link = Key ${t.days} ngày`)} (${stockText})</option>`;
     }).join('');
@@ -5260,40 +5442,107 @@ function renderOffers() {
 
   updateFreeBypassUI();
 
-  const list = activeRows(offers);
+  // 5. Render danh sách thẻ Ưu đãi Key Free (#freeGrid) có phân loại Danh mục & Game
+  const allOffers = activeRows(offers);
+  const filteredOffers = activeFreeCategoryFilter
+    ? allOffers.filter(o => {
+        const oCatId = o.categoryId || products[o.productId]?.categoryId || '';
+        return !oCatId || oCatId === activeFreeCategoryFilter;
+      })
+    : allOffers;
+
   const grid = $('freeGrid');
   if (grid) {
-    grid.innerHTML = list.length ? list.map(o => `
+    grid.innerHTML = filteredOffers.length ? filteredOffers.map(o => {
+      const meta = getProductCategoryMeta(o.productId, o.categoryId);
+      return `
       <article class="free-card glass scroll-item in-view">
         <div class="free-image">${safeUrl(o.imageUrl) ? imgHtml(o.imageUrl, o.title) : SVG_MODEL_CUBE}</div>
         <div class="free-content">
-          <span class="free-tag">SỰ KIỆN · ${esc(plans[o.planId]?.label || o.planLabel || 'FREE KEY')}</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+            <span class="pill pill-blue">${esc(meta.categoryName)}</span>
+            <span class="pill pill-green">${esc(meta.productName)}</span>
+            <span class="free-tag" style="margin:0">${esc(plans[o.planId]?.label || o.planLabel || 'FREE KEY')}</span>
+          </div>
           <h3>${esc(o.title || 'Nhận key miễn phí')}</h3>
-          <p>${esc(o.description || 'Chọn gói vượt link phía trên để nhận key tự động.')}</p>
+          <p>${esc(o.description || 'Chọn đúng Danh mục & Game phía trên để vượt link nhận key tự động.')}</p>
+          <button type="button" class="btn btn-secondary small-btn" data-select-free-offer-prod="${esc(o.productId || '')}" data-select-free-offer-cat="${esc(meta.categoryId || '')}" style="margin-top:10px;width:100%">
+            Chọn Game này để Vượt Link Nhận Key
+          </button>
         </div>
       </article>
-    `).join('') : '';
+    `;
+    }).join('') : '';
+
+    grid.querySelectorAll('[data-select-free-offer-prod]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pId = btn.dataset.selectFreeOfferProd || '';
+        const cId = btn.dataset.selectFreeOfferCat || '';
+        if (cId && cId !== 'all' && categories[cId]) {
+          activeFreeCategoryFilter = cId;
+        } else {
+          activeFreeCategoryFilter = '';
+        }
+        renderOffers();
+        if (pId && $('freeProductSelect') && Array.from($('freeProductSelect').options).some(o => o.value === pId)) {
+          $('freeProductSelect').value = pId;
+          syncCustomSelectUI($('freeProductSelect'));
+          updateFreeBypassUI();
+        }
+        $('free')?.scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
     attachMediaOrientationDetector(grid);
   }
 }
 
 function updateFreeBypassUI() {
   const selectedFreeProdId = $('freeProductSelect')?.value || '';
+  const selectedFreeCatId = activeFreeCategoryFilter || ($('freeCategorySelect')?.value !== 'all' ? $('freeCategorySelect')?.value : '') || '';
+  const meta = getProductCategoryMeta(selectedFreeProdId, selectedFreeCatId);
+
   if ($('freeSelectedProductDownloadBox')) {
     $('freeSelectedProductDownloadBox').innerHTML = products[selectedFreeProdId]
       ? renderProductDownloadBar(products[selectedFreeProdId], 'card')
       : '';
   }
+
   const tiers = getFreeTiersList();
   const cfg = getFreeConfig();
   const selectedTierId = $('freeTierSelect')?.value || tiers[0]?.id || '';
   const selectedTier = tiers.find(t => t.id === selectedTierId) || tiers[0];
 
+  const currentTierStock = countAvailableKeysForTierAndProduct(selectedTier, selectedFreeProdId, meta.categoryId);
+  if ($('freeStockCounterBadge')) {
+    $('freeStockCounterBadge').className = currentTierStock > 0 || cfg.autoGenerateIfEmpty ? 'pill pill-blue' : 'pill pill-amber';
+    $('freeStockCounterBadge').textContent = currentTierStock > 0
+      ? `${meta.productName}: Còn ${currentTierStock} key free`
+      : (cfg.autoGenerateIfEmpty ? `${meta.productName}: Cấp tự động` : `${meta.productName}: Tạm hết key`);
+  }
+
+  // Hiển thị hộp thông tin phân loại Danh mục & Game rõ ràng
+  const classBox = $('freeSelectedGameClassificationBox');
+  if (classBox) {
+    classBox.innerHTML = `
+      <div style="padding:11px 13px;border-radius:13px;background:linear-gradient(120deg,rgba(112,240,237,.09),rgba(113,140,255,.08));border:1px solid rgba(112,240,237,.3);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="pill pill-blue">DANH MỤC: ${esc(meta.categoryName.toUpperCase())}</span>
+          <span class="pill pill-green">GAME / MENU: ${esc(meta.productName)}</span>
+        </div>
+        <small style="font-size:11px;color:#d6e6ff;font-weight:700">
+          Gói đang chọn: <b style="color:var(--cyan)">${esc(selectedTier?.title || `Key ${selectedTier?.days || 1} Ngày`)}</b>
+          (${currentTierStock > 0 ? `Còn ${currentTierStock} key riêng cho game này` : (cfg.autoGenerateIfEmpty ? 'Tự động sinh key theo game' : 'Chờ nạp thêm key')})
+        </small>
+      </div>
+    `;
+  }
+
   const cardsContainer = $('freeTierCardsContainer');
   if (cardsContainer) {
     cardsContainer.innerHTML = tiers.map(t => {
       const isAct = t.id === (selectedTier?.id || '');
-      const avail = countAvailableKeysForTierAndProduct(t, $('freeProductSelect')?.value || '');
+      const avail = countAvailableKeysForTierAndProduct(t, selectedFreeProdId, meta.categoryId);
       return `
         <div class="free-tier-option ${isAct ? 'active' : ''}" data-pick-tier="${esc(t.id)}">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
@@ -5301,7 +5550,7 @@ function updateFreeBypassUI() {
             <strong style="font-size:12px;color:var(--cyan)">KEY ${Number(t.days) || 1} NGÀY</strong>
           </div>
           <div style="font-size:13px;font-weight:800;color:#fff;margin-top:2px">${esc(t.title || `Vượt ${t.linksRequired} link = Key ${t.days} ngày`)}</div>
-          <small class="muted" style="font-size:10px">${avail > 0 ? `Kho sẵn có: ${avail} key` : 'Cấp key tự động 24/7'}</small>
+          <small class="muted" style="font-size:10px">${esc(meta.categoryName)} · ${esc(meta.productName)} · ${avail > 0 ? `Sẵn có: ${avail} key` : 'Cấp tự động 24/7'}</small>
         </div>
       `;
     }).join('');
@@ -5380,8 +5629,8 @@ function updateFreeBypassUI() {
       startBtn.disabled = false;
       const nextStep = completedSteps + 1;
       startBtn.textContent = totalSteps > 1
-        ? `Vượt Link Bước ${nextStep}/${totalSteps} → Nhận Key ${selectedTier?.days || 1} Ngày`
-        : `Vượt 1 Link Ngay → Nhận Key ${selectedTier?.days || 1} Ngày`;
+        ? `Vượt Link Bước ${nextStep}/${totalSteps} → Nhận Key ${meta.productName} (${selectedTier?.days || 1} Ngày)`
+        : `Vượt 1 Link Ngay → Nhận Key ${meta.productName} (${selectedTier?.days || 1} Ngày)`;
     }
   }
 
@@ -5393,6 +5642,9 @@ function updateFreeBypassUI() {
 
   if (latestClaim && latestClaim.key) {
     const expiresAt = Number(latestClaim.claimedAt) + 24 * 3600 * 1000;
+    const claimMeta = getProductCategoryMeta(latestClaim.productId, latestClaim.categoryId);
+    const dispCatName = latestClaim.categoryName || claimMeta.categoryName || 'Danh mục Game';
+    const dispProdName = latestClaim.productName || claimMeta.productName || 'Key Free';
     const updateTimer = () => {
       if (timerBadge) {
         timerBadge.className = 'pill pill-green';
@@ -5405,12 +5657,16 @@ function updateFreeBypassUI() {
     if (keyBox) {
       keyBox.innerHTML = `
         <div style="padding:16px;border-radius:16px;background:linear-gradient(135deg,rgba(135,245,178,.1),rgba(112,240,237,.08));border:1px solid rgba(135,245,178,.38)">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
             <span class="pill pill-green">KEY FREE ${esc(latestClaim.days || 1)} NGÀY (HIỂN THỊ 24H)</span>
             <small class="muted" style="font-size:10px">Vượt ${esc(latestClaim.linksCompleted || 1)} link</small>
           </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+            <span class="pill pill-blue">Danh mục: ${esc(dispCatName)}</span>
+            <span class="pill pill-green">Game / Menu: ${esc(dispProdName)}</span>
+          </div>
           <div style="font-size:11px;color:#c9d8f4;margin-bottom:8px">
-            Sản phẩm: <b>${esc(latestClaim.productName || 'Key Free')}</b> · IP nhận: <b>${esc(latestClaim.ip || clientPublicIp)}</b>
+            IP nhận: <b>${esc(latestClaim.ip || clientPublicIp)}</b>
           </div>
           <div style="padding:12px;border-radius:12px;background:#050913;border:1px solid rgba(112,240,237,.35);display:flex;justify-content:space-between;align-items:center;gap:10px">
             <code class="allow-select" style="font-size:14px;font-weight:900;color:var(--cyan);word-break:break-all">${esc(latestClaim.key)}</code>
@@ -5418,7 +5674,7 @@ function updateFreeBypassUI() {
           </div>
           ${products[latestClaim.productId] ? `<div style="margin-top:10px">${renderProductDownloadBar(products[latestClaim.productId], 'card')}</div>` : ''}
           <small style="display:block;font-size:10px;color:var(--amber);margin-top:8px">
-            * Lưu ý: Key này chỉ hiển thị trong 24h cho IP <b>${esc(latestClaim.ip || clientPublicIp)}</b>. IP đã nhận key sẽ không thể tạo key mới trong 24h.
+            * Lưu ý: Key thuộc <b>[${esc(dispCatName)}] ${esc(dispProdName)}</b> hiển thị trong 24h cho IP <b>${esc(latestClaim.ip || clientPublicIp)}</b>.
           </small>
         </div>
       `;
@@ -5434,7 +5690,7 @@ function updateFreeBypassUI() {
     }
     keyBox.innerHTML = `
       <div class="empty-state">
-        Bạn chưa nhận key miễn phí nào trong 24h qua.<br>Hãy chọn gói vượt link bên trái (VD: <b>1 link = Key 1 ngày</b> hoặc <b>2 link = Key 3 ngày</b>) để nhận key ngay!
+        Bạn chưa nhận key miễn phí nào trong 24h qua.<br>Hãy chọn <b>Danh mục Game</b>, <b>Sản phẩm/Menu</b> và <b>Gói vượt link</b> bên trái để nhận đúng key của game bạn cần!
       </div>
     `;
   }
@@ -5444,21 +5700,51 @@ function updateFreeBypassUI() {
     if (!devClaims.length) {
       devListEl.innerHTML = '<div class="empty-state" style="padding:16px">Thiết bị này chưa lấy key nào trong 24h qua (Giới hạn tối đa 2 key/ngày).</div>';
     } else {
-      devListEl.innerHTML = devClaims.map(c => `
+      devListEl.innerHTML = devClaims.map(c => {
+        const cm = getProductCategoryMeta(c.productId, c.categoryId);
+        const catTxt = c.categoryName || cm.categoryName || 'Danh mục';
+        const prodTxt = c.productName || cm.productName || 'Key Free';
+        return `
         <div class="tx-item">
           <div>
-            <div class="tx-item-title">${esc(c.tierTitle || `Key ${c.days || 1} Ngày`)} · ${esc(c.productName || '')}</div>
+            <div class="tx-item-title">[${esc(catTxt)}] ${esc(prodTxt)} · ${esc(c.tierTitle || `Key ${c.days || 1} Ngày`)}</div>
             <div class="tx-item-sub allow-select">Key: <b style="color:var(--cyan)">${esc(c.key)}</b><br>IP: ${esc(c.ip)} · ${new Date(Number(c.claimedAt)).toLocaleString('vi-VN')}</div>
           </div>
           <span class="pill pill-green">${esc(c.days || 1)} ngày</span>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
   }
 }
 
+$('freeCategorySelect')?.addEventListener('change', e => {
+  const val = e.target.value;
+  activeFreeCategoryFilter = (!val || val === 'all') ? '' : val;
+  renderOffers();
+});
+$('freeProductSelect')?.addEventListener('change', () => {
+  // Cập nhật lại số lượng key tồn kho trên từng gói khi đổi Game
+  const tiers = getFreeTiersList();
+  const cfg = getFreeConfig();
+  const currentProdId = $('freeProductSelect')?.value || '';
+  const currentCatId = activeFreeCategoryFilter || products[currentProdId]?.categoryId || '';
+  const tierSel = $('freeTierSelect');
+  if (tierSel) {
+    const prevTier = tierSel.value;
+    tierSel.innerHTML = tiers.map(t => {
+      const avail = countAvailableKeysForTierAndProduct(t, currentProdId, currentCatId);
+      const stockText = avail > 0 ? `Còn ${avail} key` : (cfg.autoGenerateIfEmpty ? 'Tự động cấp key' : 'Hết key');
+      return `<option value="${esc(t.id)}">${esc(t.title || `Vượt ${t.linksRequired} link = Key ${t.days} ngày`)} (${stockText})</option>`;
+    }).join('');
+    if (prevTier && Array.from(tierSel.options).some(o => o.value === prevTier)) {
+      tierSel.value = prevTier;
+    }
+    syncCustomSelectUI(tierSel);
+  }
+  updateFreeBypassUI();
+});
 $('freeTierSelect')?.addEventListener('change', updateFreeBypassUI);
-$('freeProductSelect')?.addEventListener('change', updateFreeBypassUI);
 
 async function fetchLatestVaultSnapshots() {
   const dbBase = 'https://ideo-dd376-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -5520,7 +5806,6 @@ async function tryClaimSingleVaultKey(firebasePath, item, statusValue = 'assigne
       await update(ref(db, `${firebasePath}/${item.id}`), payload).catch(() => {});
     }
   } catch {
-    // Fallback to direct update / REST PATCH if transaction fails due to rules/connection
     try {
       await update(ref(db, `${firebasePath}/${item.id}`), payload);
       claimedOk = true;
@@ -5538,77 +5823,86 @@ async function tryClaimSingleVaultKey(firebasePath, item, statusValue = 'assigne
     } catch {}
   }
 
-  // Always mark claimed locally and return the real key from the vault
   markKeyIdClaimedLocally(item.id);
   item.status = statusValue;
   return String(item.value).trim();
 }
 
-async function claimFreeKeyFromVaultOrGenerate(tier, prodId, prodName) {
+/**
+ * Lấy Key Free theo đúng phân loại Game (productId) và Danh mục (categoryId)
+ * Tuyệt đối không lấy nhầm key của Game khác hoặc Danh mục khác!
+ */
+async function claimFreeKeyFromVaultOrGenerate(tier, prodId, prodName, catId = '', catName = '') {
   await fetchLatestVaultSnapshots();
   const cfg = getFreeConfig();
   const localClaimed = getLocallyClaimedKeyIds();
+  const meta = getProductCategoryMeta(prodId, catId);
+  const effectiveProdId = (meta.productId && meta.productId !== 'default' && meta.productId !== 'all') ? meta.productId : '';
+  const effectiveCatId = (meta.categoryId && meta.categoryId !== 'all' && meta.categoryId !== 'default') ? meta.categoryId : '';
   const candidatePlans = [...new Set([tier.planId, `${tier.days || 1}d`, '1d', '3d'].filter(Boolean))];
-  const allProdIds = Object.keys(productKeyVaultData || {});
-  const orderedProdIds = (prodId && prodId !== 'default')
-    ? [prodId, ...allProdIds.filter(id => id !== prodId)]
-    : allProdIds;
+  const claimMetaPayload = {
+    assignedType: 'free_bypass',
+    claimedProductId: meta.productId,
+    claimedProductName: prodName || meta.productName,
+    claimedCategoryId: meta.categoryId,
+    claimedCategoryName: catName || meta.categoryName
+  };
 
-  // Ưu tiên 1: Lấy key từ kho sản phẩm đang chọn (`keyVault/{prodId}/{planId}`) — nơi Admin vừa nhập key vào kho!
-  if (prodId && prodId !== 'default' && productKeyVaultData[prodId]) {
-    for (const plId of candidatePlans) {
-      const pItems = entries(productKeyVaultData[prodId]?.[plId]).filter(k => (k.status || 'available') === 'available' && !localClaimed[k.id]);
-      for (const item of pItems) {
-        const val = await tryClaimSingleVaultKey(`keyVault/${prodId}/${plId}`, item, 'assigned', { assignedType: 'free_bypass' });
-        if (val) return val;
-      }
-    }
-  }
+  const allTierItems = entries(freeKeyVaultData[tier.id]).filter(
+    k => (k.status || 'available') === 'available' && !localClaimed[k.id] && k.value
+  );
 
-  // Ưu tiên 2: Lấy key từ `freeKeyVault/{tier.id}` (Kho UpKey Free riêng của gói vượt link)
-  const tierItems = entries(freeKeyVaultData[tier.id]).filter(k => (k.status || 'available') === 'available' && !localClaimed[k.id]);
-  // Ưu tiên key khớp đúng productId trước
-  const sortedTierItems = tierItems.sort((a, b) => (a.productId === prodId ? -1 : 1) - (b.productId === prodId ? -1 : 1));
-  for (const item of sortedTierItems) {
-    const val = await tryClaimSingleVaultKey(`freeKeyVault/${tier.id}`, item, 'claimed');
-    if (val) return val;
-  }
-
-  // Ưu tiên 3: Lấy bất kỳ key khả dụng nào trong kho của sản phẩm đang chọn (`keyVault/{prodId}/*`)
-  if (prodId && prodId !== 'default' && productKeyVaultData[prodId]) {
-    for (const [plId, plBucket] of Object.entries(productKeyVaultData[prodId] || {})) {
-      const pItems = entries(plBucket).filter(k => (k.status || 'available') === 'available' && !localClaimed[k.id]);
-      for (const item of pItems) {
-        const val = await tryClaimSingleVaultKey(`keyVault/${prodId}/${plId}`, item, 'assigned', { assignedType: 'free_bypass' });
-        if (val) return val;
-      }
-    }
-  }
-
-  // Ưu tiên 4: Tìm trên toàn bộ các sản phẩm trong `keyVault` và `freeKeyVault`
-  for (const pid of orderedProdIds) {
-    for (const [plId, plBucket] of Object.entries(productKeyVaultData[pid] || {})) {
-      const pItems = entries(plBucket).filter(k => (k.status || 'available') === 'available' && !localClaimed[k.id]);
-      for (const item of pItems) {
-        const val = await tryClaimSingleVaultKey(`keyVault/${pid}/${plId}`, item, 'assigned', { assignedType: 'free_bypass' });
-        if (val) return val;
-      }
-    }
-  }
-  for (const [tId, tBucket] of Object.entries(freeKeyVaultData || {})) {
-    const tItems = entries(tBucket).filter(k => (k.status || 'available') === 'available' && !localClaimed[k.id]);
-    for (const item of tItems) {
-      const val = await tryClaimSingleVaultKey(`freeKeyVault/${tId}`, item, 'claimed');
+  // Ưu tiên 1: Key trong `freeKeyVault/{tier.id}` được gán trực tiếp cho đúng Game (`k.productId === effectiveProdId`)
+  if (effectiveProdId) {
+    const exactProdFreeKeys = allTierItems.filter(k => String(k.productId || '') === effectiveProdId);
+    for (const item of exactProdFreeKeys) {
+      const val = await tryClaimSingleVaultKey(`freeKeyVault/${tier.id}`, item, 'claimed', claimMetaPayload);
       if (val) return val;
     }
   }
 
-  if (!cfg.autoGenerateIfEmpty) {
-    throw new Error('Kho Key hiện đã hết key chưa giao! Vui lòng báo Admin thêm key vào Kho Key.');
+  // Ưu tiên 2: Key trong kho sản phẩm của đúng Game đang chọn (`keyVault/{effectiveProdId}/{planId}`)
+  if (effectiveProdId && productKeyVaultData[effectiveProdId]) {
+    for (const plId of candidatePlans) {
+      const pItems = entries(productKeyVaultData[effectiveProdId]?.[plId]).filter(
+        k => (k.status || 'available') === 'available' && !localClaimed[k.id] && k.value
+      );
+      for (const item of pItems) {
+        const val = await tryClaimSingleVaultKey(`keyVault/${effectiveProdId}/${plId}`, item, 'assigned', claimMetaPayload);
+        if (val) return val;
+      }
+    }
   }
 
-  const randPart = md5Hash(`${clientPublicIp}_${clientDeviceId}_${Date.now()}_${Math.random()}`).slice(0, 10).toUpperCase();
-  return `FREE-${tier.days || 1}D-${randPart.slice(0, 5)}-${randPart.slice(5, 10)}`;
+  // Ưu tiên 3: Key trong `freeKeyVault/{tier.id}` thuộc đúng Danh mục (`k.categoryId === effectiveCatId`) và không khóa riêng cho game khác
+  if (effectiveCatId) {
+    const catMatchedFreeKeys = allTierItems.filter(
+      k => (!k.productId || k.productId === 'default' || k.productId === 'all' || k.productId === effectiveProdId) &&
+           String(k.categoryId || '') === effectiveCatId
+    );
+    for (const item of catMatchedFreeKeys) {
+      const val = await tryClaimSingleVaultKey(`freeKeyVault/${tier.id}`, item, 'claimed', claimMetaPayload);
+      if (val) return val;
+    }
+  }
+
+  // Ưu tiên 4: Key Free chung (chưa gắn riêng cho game khác và chưa gắn riêng cho danh mục khác) trong `freeKeyVault/{tier.id}`
+  const globalFreeKeys = allTierItems.filter(
+    k => (!k.productId || k.productId === 'default' || k.productId === 'all') &&
+         (!k.categoryId || k.categoryId === 'default' || k.categoryId === 'all')
+  );
+  for (const item of globalFreeKeys) {
+    const val = await tryClaimSingleVaultKey(`freeKeyVault/${tier.id}`, item, 'claimed', claimMetaPayload);
+    if (val) return val;
+  }
+
+  if (!cfg.autoGenerateIfEmpty) {
+    throw new Error(`Kho Key Free của game "${prodName || meta.productName}" (${catName || meta.categoryName}) hiện đã hết! Vui lòng chọn game khác hoặc báo Admin nạp thêm key.`);
+  }
+
+  const gameCode = normalizeAlphaNum(prodName || meta.productName || 'GAME').slice(0, 4) || 'NOVA';
+  const randPart = md5Hash(`${clientPublicIp}_${clientDeviceId}_${Date.now()}_${Math.random()}`).slice(0, 8).toUpperCase();
+  return `FREE-${gameCode}-${tier.days || 1}D-${randPart.slice(0, 4)}-${randPart.slice(4, 8)}`;
 }
 
 async function startFreeShortlinkStep() {
@@ -5637,10 +5931,11 @@ async function startFreeShortlinkStep() {
   if (!tier) return;
 
   const prodId = $('freeProductSelect')?.value || 'default';
-  const prodName = products[prodId]?.name || 'Key Free Tất Cả Sản Phẩm';
+  const selCatId = activeFreeCategoryFilter || ($('freeCategorySelect')?.value !== 'all' ? $('freeCategorySelect')?.value : '') || '';
+  const meta = getProductCategoryMeta(prodId, selCatId);
   const totalSteps = Math.max(1, Number(tier.linksRequired) || 1);
 
-  let currentCompleted = (activeBypassSession && activeBypassSession.tierId === tier.id)
+  let currentCompleted = (activeBypassSession && activeBypassSession.tierId === tier.id && activeBypassSession.productId === meta.productId)
     ? (Number(activeBypassSession.completedSteps) || 0)
     : 0;
   const nextStep = currentCompleted + 1;
@@ -5649,7 +5944,7 @@ async function startFreeShortlinkStep() {
   btn.textContent = `Đang tạo link vượt bảo mật (${nextStep}/${totalSteps})…`;
 
   try {
-    const sessionId = (activeBypassSession && activeBypassSession.tierId === tier.id && activeBypassSession.sessionId)
+    const sessionId = (activeBypassSession && activeBypassSession.tierId === tier.id && activeBypassSession.productId === meta.productId && activeBypassSession.sessionId)
       ? activeBypassSession.sessionId
       : ('FBS_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8).toUpperCase());
 
@@ -5668,8 +5963,10 @@ async function startFreeShortlinkStep() {
       ip: clientPublicIp,
       ipKey: clientIpKey,
       deviceId: clientDeviceId,
-      productId: prodId,
-      productName: prodName,
+      categoryId: meta.categoryId,
+      categoryName: meta.categoryName,
+      productId: meta.productId,
+      productName: meta.productName,
       status: 'pending_step'
     };
 
@@ -5688,7 +5985,7 @@ async function startFreeShortlinkStep() {
       ? `${apiBase}${encodeURIComponent(destinationUrl)}`
       : `${apiBase}${apiBase.includes('?') ? '&' : '?'}url=${encodeURIComponent(destinationUrl)}`;
 
-    toast(`Đang chuyển đến Link Vượt ${nextStep}/${totalSteps} (digitalsmod.site)…`);
+    toast(`Đang chuyển đến Link Vượt ${nextStep}/${totalSteps} cho [${meta.categoryName}] ${meta.productName}…`);
     window.location.assign(fullShortlink);
   } catch (err) {
     console.error(err);
@@ -5785,14 +6082,20 @@ async function verifyReturnFromShortlinkCallback() {
       activeBypassSession = updatedSession;
       try { localStorage.setItem('keynova_active_bypass_session', JSON.stringify(updatedSession)); } catch {}
       updateFreeBypassUI();
-      toast(`Đã hoàn thành Vượt Link ${stepParam}/${totalSteps}! Hãy bấm tiếp tục để vượt Link ${stepParam + 1}/${totalSteps} và nhận Key ${sess.days} Ngày.`);
+      toast(`Đã hoàn thành Vượt Link ${stepParam}/${totalSteps}! Hãy bấm tiếp tục để vượt Link ${stepParam + 1}/${totalSteps} và nhận Key ${sess.productName || ''} (${sess.days} Ngày).`);
       $('free')?.scrollIntoView({ behavior: 'smooth' });
       return;
     }
 
     const tiers = getFreeTiersList();
     const tier = tiers.find(t => t.id === sess.tierId) || { id: sess.tierId, days: sess.days, title: sess.tierTitle, linksRequired: totalSteps };
-    const issuedKey = await claimFreeKeyFromVaultOrGenerate(tier, sess.productId, sess.productName);
+    const meta = getProductCategoryMeta(sess.productId, sess.categoryId);
+    const resolvedCatId = sess.categoryId || meta.categoryId;
+    const resolvedCatName = sess.categoryName || meta.categoryName;
+    const resolvedProdId = sess.productId || meta.productId;
+    const resolvedProdName = sess.productName || meta.productName;
+
+    const issuedKey = await claimFreeKeyFromVaultOrGenerate(tier, resolvedProdId, resolvedProdName, resolvedCatId, resolvedCatName);
 
     const claimRecord = {
       sessionId,
@@ -5801,8 +6104,10 @@ async function verifyReturnFromShortlinkCallback() {
       tierTitle: sess.tierTitle || `Key ${sess.days} Ngày`,
       days: Number(sess.days) || 1,
       linksCompleted: totalSteps,
-      productId: sess.productId || 'default',
-      productName: sess.productName || 'Key Free',
+      categoryId: resolvedCatId,
+      categoryName: resolvedCatName,
+      productId: resolvedProdId,
+      productName: resolvedProdName,
       ip: clientPublicIp,
       ipKey: clientIpKey,
       deviceId: clientDeviceId,
@@ -5829,7 +6134,7 @@ async function verifyReturnFromShortlinkCallback() {
     freeIpClaimRecord = claimRecord;
     freeDeviceClaimsMap[sessionId] = claimRecord;
     updateFreeBypassUI();
-    toast(`Vượt đủ ${totalSteps} link thành công! Đã cấp Key ${claimRecord.days} Ngày (Hiển thị trong 24h).`);
+    toast(`Vượt đủ ${totalSteps} link thành công! Đã cấp Key [${resolvedCatName}] ${resolvedProdName} (${claimRecord.days} Ngày).`);
     $('free')?.scrollIntoView({ behavior: 'smooth' });
   } catch (err) {
     console.error(err);
