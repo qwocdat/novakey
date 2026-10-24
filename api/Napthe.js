@@ -1,28 +1,10 @@
-/**
- * ============================================================================
- * KEYNOVA · GachTheFast.Com Scratch Card Charging & Webhook Module (napthe.js)
- * ============================================================================
- * - Cổng gạch thẻ tự động: https://gachthefast.com/chargingws/v2
- * - Chữ ký bảo mật chuẩn: sign = md5(partner_key + code + serial)
- * - Firebase RTDB: https://ideo-dd376-default-rtdb.asia-southeast1.firebasedatabase.app
- *
- * Hỗ trợ đầy đủ 10 loại thẻ trên GachTheFast.com:
- * VIETTEL, VINAPHONE, MOBIFONE, VIETNAMOBILE, ZING, GARENA, GATE, VCOIN, APPOTA, SCOIN
- * Mệnh giá: 10.000đ -> 1.000.000đ
- *
- * Quy chuẩn xử lý Callback GachTheFast.com:
- * - status == 1: Thẻ đúng mệnh giá -> Tự động cộng 100% giá trị vào `users/{uid}/balance`.
- * - status == 2: Thẻ đúng nhưng sai mệnh giá -> Tự động cộng 50% mệnh giá nhỏ.
- * - status == 3 / 4: Thẻ lỗi hoặc đã sử dụng -> Cập nhật trạng thái từ chối.
- * - status == 99: Đang chờ xử lý.
- * ============================================================================
- */
-
 const GACHTHEFAST_CONFIG = {
+  provider: 'Pay2S',
   apiUrl: 'https://gachthefast.com/chargingws/v2',
   firebaseDatabaseUrl: 'https://ideo-dd376-default-rtdb.asia-southeast1.firebasedatabase.app',
   defaultPartnerId: '',
   defaultPartnerKey: '',
+  defaultWebhookToken: '',
   telcos: [
     { code: 'VIETTEL', name: 'Thẻ Viettel', discount: 10.7, serialLen: [11, 15], pinLen: [13, 15] },
     { code: 'VINAPHONE', name: 'Thẻ Vinaphone', discount: 14.5, serialLen: [14, 14], pinLen: [12, 14] },
@@ -48,9 +30,6 @@ const GACHTHEFAST_CONFIG = {
   ]
 };
 
-/**
- * Thuật toán MD5 thuần JavaScript để tạo chữ ký `sign = md5(partner_key + code + serial)`
- */
 function md5Hash(string) {
   function rotateLeft(lValue, iShiftBits) {
     return (lValue << iShiftBits) | (lValue >>> (32 - iShiftBits));
@@ -204,16 +183,120 @@ function md5Hash(string) {
   return (wordToHex(a) + wordToHex(b) + wordToHex(c) + wordToHex(d)).toLowerCase();
 }
 
-/**
- * Tạo chữ ký chuẩn GachTheFast.com: md5(partner_key + code + serial)
- */
 function buildGachTheFastSign(partnerKey, code, serial) {
   return md5Hash(`${String(partnerKey || '').trim()}${String(code || '').trim()}${String(serial || '').trim()}`);
 }
 
-/**
- * Gửi thẻ cào lên hệ thống GachTheFast.com (`POST https://gachthefast.com/chargingws/v2`)
- */
+function buildPay2sAckResponse(extra = {}, isSuccess = true) {
+  return {
+    success: Boolean(isSuccess),
+    status: extra.status !== undefined ? extra.status : Boolean(isSuccess),
+    ok: Boolean(isSuccess),
+    error: isSuccess ? 0 : 1,
+    errorCode: isSuccess ? 0 : 1,
+    message: extra.message || (isSuccess
+      ? 'Giao dịch được xử lý và xác nhận thành công'
+      : 'Thông tin không hợp lệ, không tìm thấy giao dịch'),
+    provider: 'Pay2S',
+    ...extra
+  };
+}
+
+function verifyPay2sWebhookToken(headers = {}, expectedToken = '') {
+  const cleanExpected = String(expectedToken || '').trim().replace(/^Bearer\s+/i, '');
+  if (!cleanExpected) return { valid: true, token: '' };
+
+  const getHeader = name => {
+    if (!headers) return '';
+    if (typeof headers.get === 'function') return headers.get(name) || headers.get(name.toLowerCase()) || '';
+    return headers[name] || headers[name.toLowerCase()] || headers[name.toUpperCase()] || '';
+  };
+
+  const rawAuth = String(
+    getHeader('authorization') ||
+    getHeader('Authorization') ||
+    getHeader('pay2s-token') ||
+    getHeader('x-pay2s-token') ||
+    getHeader('x-webhook-token') ||
+    getHeader('x-api-key') ||
+    ''
+  ).trim();
+
+  const token = rawAuth.replace(/^Bearer\s+/i, '').replace(/^Apikey\s+/i, '').trim();
+  return {
+    valid: token === cleanExpected,
+    token
+  };
+}
+
+function normalizeAccountKey(str) {
+  return String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u0110\u0111]/g, 'd')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '');
+}
+
+function normalizeAlphaNum(str) {
+  return String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u0110\u0111]/g, 'd')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+}
+
+function matchUserByTransferContent(description, usersMap = {}) {
+  const rawDesc = String(description || '').trim();
+  if (!rawDesc) return null;
+
+  const descLower = rawDesc.toLowerCase();
+  const descAlphaNum = normalizeAlphaNum(rawDesc);
+  const tokens = rawDesc
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u0110\u0111]/g, 'd')
+    .split(/[\s,.;:|\-/+]+/)
+    .map(t => t.trim().toLowerCase())
+    .filter(Boolean);
+
+  const candidates = [];
+  for (const [uid, u] of Object.entries(usersMap || {})) {
+    if (!u || typeof u !== 'object') continue;
+    const rawUsername =
+      u.accountName ||
+      u.username ||
+      (u.rawIdentifier ? String(u.rawIdentifier).split('@')[0] : '') ||
+      (u.email ? String(u.email).split('@')[0] : '') ||
+      u.displayName ||
+      '';
+    const cleanKey = normalizeAccountKey(rawUsername);
+    const alphaKey = normalizeAlphaNum(rawUsername);
+    if (!cleanKey && !alphaKey) continue;
+
+    if (normalizeAccountKey(rawDesc) === cleanKey || (alphaKey.length >= 3 && descAlphaNum === alphaKey)) {
+      return { uid, user: u, matchedAccountName: rawUsername, confidence: 100 };
+    }
+    if (cleanKey.length >= 3 && tokens.includes(cleanKey)) {
+      candidates.push({ uid, user: u, matchedAccountName: rawUsername, confidence: 90, len: cleanKey.length });
+      continue;
+    }
+    if (alphaKey.length >= 4 && descAlphaNum.includes(alphaKey)) {
+      candidates.push({ uid, user: u, matchedAccountName: rawUsername, confidence: 75, len: alphaKey.length });
+      continue;
+    }
+    const dispAlpha = normalizeAlphaNum(u.displayName || '');
+    if (dispAlpha.length >= 4 && (descAlphaNum === dispAlpha || descLower.includes(String(u.displayName || '').toLowerCase()))) {
+      candidates.push({ uid, user: u, matchedAccountName: u.displayName, confidence: 65, len: dispAlpha.length });
+    }
+  }
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => (b.confidence - a.confidence) || (b.len - a.len));
+  return candidates[0];
+}
+
 async function submitCardToGachTheFast({
   telco,
   code,
@@ -260,7 +343,7 @@ async function submitCardToGachTheFast({
     return {
       sentToApi: true,
       status: Number(data.status ?? 99),
-      message: data.message || 'Đã gửi thẻ sang GachTheFast.com',
+      message: data.message || 'Đã gửi thẻ sang cổng gạch thẻ tự động',
       transId: data.trans_id || '',
       raw: data
     };
@@ -273,22 +356,38 @@ async function submitCardToGachTheFast({
   }
 }
 
-/**
- * Chuẩn hoá dữ liệu Callback Webhook từ GachTheFast.com
- */
 function parseCardCallbackPayload(payload = {}) {
   if (!payload || typeof payload !== 'object') return null;
-  const status = Number(payload.status ?? 99);
-  const requestId = String(payload.request_id || payload.requestId || '').trim();
-  const code = String(payload.code || payload.pin || '').trim();
-  const serial = String(payload.serial || '').trim();
-  const telco = String(payload.telco || payload.type || 'VIETTEL').trim().toUpperCase();
-  const declaredValue = Number(payload.declared_value ?? payload.amount_declared ?? payload.amount ?? 0);
-  const realValue = Number(payload.value ?? payload.real_value ?? declaredValue ?? 0);
-  const receivedAmount = Number(payload.amount ?? realValue ?? 0);
-  const callbackSign = String(payload.callback_sign || payload.sign || '').trim().toLowerCase();
-  const transId = String(payload.trans_id || payload.transaction_id || requestId || Date.now()).trim();
-  const message = String(payload.message || '').trim();
+
+  if (Array.isArray(payload.transactions) || (payload.payload && Array.isArray(payload.payload.transactions))) {
+    return null;
+  }
+
+  const rawStatus = payload.status ?? payload.resultCode;
+  let status = 99;
+  if (rawStatus === 1 || rawStatus === '1' || rawStatus === 'SUCCESS' || rawStatus === 'PAID' || rawStatus === true || rawStatus === 0 || rawStatus === '0') {
+    status = (rawStatus === 0 || rawStatus === '0') && payload.resultCode !== undefined ? 1 : Number(rawStatus === true ? 1 : rawStatus);
+  } else if (rawStatus !== undefined) {
+    status = Number(rawStatus);
+    if (Number.isNaN(status)) status = 3;
+  }
+
+  const requestId = String(
+    payload.request_id ||
+    payload.requestId ||
+    payload.orderId ||
+    payload.paymentCode ||
+    ''
+  ).trim();
+  const code = String(payload.code || payload.pin || payload.card_code || '').trim();
+  const serial = String(payload.serial || payload.seri || payload.card_serial || '').trim();
+  const telco = String(payload.telco || payload.type || payload.card_type || 'VIETTEL').trim().toUpperCase();
+  const declaredValue = Number(payload.declared_value ?? payload.amount_declared ?? payload.card_value ?? payload.amount ?? 0);
+  const realValue = Number(payload.value ?? payload.real_value ?? payload.transferAmount ?? declaredValue ?? 0);
+  const receivedAmount = Number(payload.amount ?? payload.transferAmount ?? realValue ?? 0);
+  const callbackSign = String(payload.callback_sign || payload.sign || payload.checksum || payload.signature || '').trim().toLowerCase();
+  const transId = String(payload.trans_id || payload.transaction_id || payload.transactionNumber || payload.id || requestId || Date.now()).trim();
+  const message = String(payload.message || payload.content || payload.description || '').trim();
 
   if (!requestId && !serial && !code) return null;
 
@@ -317,20 +416,64 @@ function parseCardCallbackPayload(payload = {}) {
   };
 }
 
-/**
- * Xử lý Callback Webhook GachTheFast.com trực tiếp qua Firebase SDK
- */
+function parsePay2sTransactionsInNapthe(payload = {}) {
+  if (!payload || typeof payload !== 'object') return [];
+  const rawList = Array.isArray(payload.transactions)
+    ? payload.transactions
+    : payload.payload && Array.isArray(payload.payload.transactions)
+    ? payload.payload.transactions
+    : payload.data && Array.isArray(payload.data.transactions)
+    ? payload.data.transactions
+    : Array.isArray(payload.data)
+    ? payload.data
+    : (payload.transferAmount !== undefined || payload.gateway !== undefined || payload.transactionNumber !== undefined)
+    ? [payload]
+    : [];
+
+  const list = [];
+  for (const item of rawList) {
+    if (!item || typeof item !== 'object') continue;
+    const transferType = String(item.transferType || item.type || 'IN').toLowerCase();
+    if (['out', 'debit', 'expense'].includes(transferType)) continue;
+    const amount = Number(item.transferAmount ?? item.amount ?? item.value ?? 0);
+    if (!Number.isFinite(amount) || amount <= 0) continue;
+    const content = String(item.content ?? item.description ?? item.orderInfo ?? item.paymentCode ?? '').trim();
+    const rawTxId = String(item.id ?? item.transactionNumber ?? item.checksum ?? `${Date.now()}_${Math.round(amount)}`).trim();
+    list.push({
+      txId: rawTxId.replace(/[.#$/[\]\s]/g, '_'),
+      rawTxId,
+      gateway: String(item.gateway || 'ACB').trim(),
+      amount: Math.round(amount),
+      description: content,
+      accountNumber: String(item.accountNumber || item.vaNumber || '').trim(),
+      checksum: String(item.checksum || '').trim(),
+      timestamp: Date.now()
+    });
+  }
+  return list;
+}
+
 async function processCardWebhookWithFirebaseSdk({ db, firebaseFns, payload, partnerKey = '' }) {
   const { ref, get, set, update, push, runTransaction } = firebaseFns;
+
+  const pay2sTxs = parsePay2sTransactionsInNapthe(payload);
+  if (pay2sTxs.length > 0 && typeof globalThis !== 'undefined' && globalThis.KEYNOVA_BANK?.processBankWebhookWithFirebaseSdk) {
+    return globalThis.KEYNOVA_BANK.processBankWebhookWithFirebaseSdk({ db, firebaseFns, payload });
+  }
+
   const parsed = parseCardCallbackPayload(payload);
   if (!parsed) {
-    return { ok: false, message: 'Dữ liệu callback thẻ cào không hợp lệ.' };
+    return buildPay2sAckResponse({
+      message: 'Giao dịch được xử lý và xác nhận thành công (Pay2S Webhook Ready)'
+    }, true);
   }
 
   if (partnerKey && parsed.callbackSign && parsed.code && parsed.serial) {
     const expectedSign = buildGachTheFastSign(partnerKey, parsed.code, parsed.serial);
     if (expectedSign !== parsed.callbackSign) {
-      return { ok: false, message: 'Chữ ký callback_sign không khớp.' };
+      return buildPay2sAckResponse({
+        message: 'Chữ ký callback_sign không khớp.'
+      }, false);
     }
   }
 
@@ -357,12 +500,34 @@ async function processCardWebhookWithFirebaseSdk({ db, firebaseFns, payload, par
   }
 
   if (!matchedUid) {
-    return {
-      ok: false,
-      status: 'unmatched_card',
+    const usersSnap = await get(ref(db, 'users'));
+    const usersMap = usersSnap.val() || {};
+    const matchedUser = matchUserByTransferContent(parsed.requestId || parsed.message, usersMap);
+    if (matchedUser && (parsed.status === 1 || parsed.status === 2) && parsed.creditedValue > 0) {
+      matchedUid = matchedUser.uid;
+      const newCardRef = push(ref(db, `cardCharges/${matchedUid}`));
+      matchedChargeId = newCardRef.key;
+      await set(newCardRef, {
+        uid: matchedUid,
+        accountName: matchedUser.matchedAccountName,
+        telco: parsed.telco,
+        amount: parsed.declaredValue || parsed.creditedValue,
+        serial: parsed.serial || 'PAY2S',
+        code: parsed.code || parsed.transId,
+        requestId: parsed.requestId || parsed.transId,
+        status: 'pending',
+        createdAt: Date.now()
+      });
+    }
+  }
+
+  if (!matchedUid) {
+    return buildPay2sAckResponse({
+      cardStatus: 'unmatched_card',
       requestId: parsed.requestId,
-      serial: parsed.serial
-    };
+      serial: parsed.serial,
+      message: 'Giao dịch được xử lý và xác nhận thành công'
+    }, true);
   }
 
   const lockKey = (parsed.requestId || `${matchedUid}_${matchedChargeId}`).replace(/[.#$/[\]\s]/g, '_');
@@ -370,10 +535,15 @@ async function processCardWebhookWithFirebaseSdk({ db, firebaseFns, payload, par
   if (parsed.status === 99) {
     await update(ref(db, `cardCharges/${matchedUid}/${matchedChargeId}`), {
       status: 'pending',
-      apiMessage: parsed.message || 'Đang chờ GachTheFast.com xử lý',
+      apiMessage: parsed.message || 'Đang chờ hệ thống xử lý',
       updatedAt: Date.now()
     });
-    return { ok: true, status: 'pending', uid: matchedUid, chargeId: matchedChargeId };
+    return buildPay2sAckResponse({
+      cardStatus: 'pending',
+      uid: matchedUid,
+      chargeId: matchedChargeId,
+      message: 'Giao dịch đang chờ xử lý'
+    }, true);
   }
 
   const lockRef = ref(db, `processedCardTx/${lockKey}`);
@@ -387,12 +557,18 @@ async function processCardWebhookWithFirebaseSdk({ db, firebaseFns, payload, par
       serial: parsed.serial,
       status: parsed.status,
       creditedValue: parsed.creditedValue,
+      provider: 'Pay2S',
       processedAt: Date.now()
     };
   });
 
   if (!lockTx.committed) {
-    return { ok: true, status: 'duplicate_ignored', uid: matchedUid, chargeId: matchedChargeId };
+    return buildPay2sAckResponse({
+      cardStatus: 'duplicate_ignored',
+      uid: matchedUid,
+      chargeId: matchedChargeId,
+      message: 'Giao dịch được xử lý và xác nhận thành công'
+    }, true);
   }
 
   if (parsed.status === 1 || parsed.status === 2) {
@@ -405,6 +581,7 @@ async function processCardWebhookWithFirebaseSdk({ db, firebaseFns, payload, par
       status: parsed.status === 1 ? 'approved' : 'wrong_amount',
       realValue: parsed.realValue,
       creditedAmount: creditAmt,
+      webhookProvider: 'Pay2S',
       apiMessage: parsed.status === 1 ? 'Thẻ đúng mệnh giá' : 'Thẻ sai mệnh giá (Phạt 50%)',
       processedAt: Date.now()
     });
@@ -417,17 +594,19 @@ async function processCardWebhookWithFirebaseSdk({ db, firebaseFns, payload, par
       balanceAfter: newBalance,
       detail: `Seri: ${parsed.serial} · Mã: ${parsed.code} · Cộng: +${creditAmt.toLocaleString('vi-VN')}đ`,
       status: 'completed',
+      webhookProvider: 'Pay2S',
       createdAt: Date.now()
     });
 
-    return {
-      ok: true,
+    return buildPay2sAckResponse({
       status: parsed.status === 1 ? 'approved' : 'wrong_amount',
+      cardStatus: parsed.status === 1 ? 'approved' : 'wrong_amount',
       uid: matchedUid,
       chargeId: matchedChargeId,
       creditedAmount: creditAmt,
-      newBalance
-    };
+      newBalance,
+      message: 'Giao dịch được xử lý và xác nhận thành công'
+    }, true);
   }
 
   await update(ref(db, `cardCharges/${matchedUid}/${matchedChargeId}`), {
@@ -446,17 +625,15 @@ async function processCardWebhookWithFirebaseSdk({ db, firebaseFns, payload, par
     createdAt: Date.now()
   });
 
-  return {
-    ok: true,
+  return buildPay2sAckResponse({
     status: 'rejected',
+    cardStatus: 'rejected',
     uid: matchedUid,
-    chargeId: matchedChargeId
-  };
+    chargeId: matchedChargeId,
+    message: 'Giao dịch được xử lý và xác nhận thành công'
+  }, true);
 }
 
-/**
- * Lắng nghe nhánh `cardWebhooksQueue` trên Firebase Realtime Database
- */
 function startCardWebhookListener({ db, firebaseFns, getPartnerKey, onProcessed }) {
   const { ref, onValue, update } = firebaseFns;
   const queueRef = ref(db, 'cardWebhooksQueue');
@@ -480,40 +657,155 @@ function startCardWebhookListener({ db, firebaseFns, getPartnerKey, onProcessed 
           onProcessed(res);
         }
       } catch (err) {
-        console.warn('Card webhook queue error:', err);
+        console.warn('Pay2S / Card webhook queue error:', err);
       }
     }
   });
 }
 
-/**
- * Serverless Webhook Handler cho GachTheFast.com (Node.js / Cloudflare Workers / Vercel)
- * Vừa đẩy vào `cardWebhooksQueue`, vừa tự động đối soát & cộng tiền trực tiếp qua REST API!
- */
 async function handleServerlessCardWebhook(payload, options = {}) {
   const dbUrl = (options.databaseURL || GACHTHEFAST_CONFIG.firebaseDatabaseUrl).replace(/\/$/, '');
   const authQuery = options.databaseSecret ? `?auth=${encodeURIComponent(options.databaseSecret)}` : '';
-  const parsed = parseCardCallbackPayload(payload);
-  if (!parsed) {
-    return { statusCode: 400, body: { ok: false, message: 'Invalid GachTheFast callback payload' } };
+
+  if (options.headers && options.webhookToken) {
+    const authCheck = verifyPay2sWebhookToken(options.headers, options.webhookToken);
+    if (!authCheck.valid) {
+      return {
+        statusCode: 401,
+        body: buildPay2sAckResponse({
+          message: 'Unauthorized: Token Webhook Pay2S không khớp.'
+        }, false)
+      };
+    }
   }
 
+  const pay2sTxList = parsePay2sTransactionsInNapthe(payload);
+  if (pay2sTxList.length > 0) {
+    try {
+      await fetch(`${dbUrl}/bankWebhooksQueue.json${authQuery}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: 'Pay2S',
+          source: 'api/Napthe.js',
+          payload,
+          processed: false,
+          receivedAt: Date.now()
+        })
+      });
+    } catch {}
+
+    const summary = [];
+    let creditedCount = 0;
+    try {
+      const usersRes = await fetch(`${dbUrl}/users.json${authQuery}`).catch(() => null);
+      const usersMap = (usersRes && usersRes.ok ? await usersRes.json() : null) || {};
+
+      for (const tx of pay2sTxList) {
+        const checkRes = await fetch(`${dbUrl}/processedBankTx/${encodeURIComponent(tx.txId)}.json${authQuery}`);
+        const existing = checkRes.ok ? await checkRes.json() : null;
+        if (existing) {
+          summary.push({ txId: tx.txId, status: 'duplicate_ignored' });
+          continue;
+        }
+        const matched = matchUserByTransferContent(tx.description, usersMap);
+        if (!matched) {
+          summary.push({ txId: tx.txId, status: 'unmatched_account_name', description: tx.description, amount: tx.amount });
+          continue;
+        }
+        const { uid, user, matchedAccountName } = matched;
+        const currentBal = Number(user.balance) || 0;
+        const nextBal = currentBal + tx.amount;
+
+        const lockPut = await fetch(`${dbUrl}/processedBankTx/${encodeURIComponent(tx.txId)}.json${authQuery}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            txId: tx.txId,
+            uid,
+            matchedAccountName,
+            amount: tx.amount,
+            description: tx.description,
+            provider: 'Pay2S',
+            processedAt: Date.now()
+          })
+        });
+        if (!lockPut.ok) {
+          summary.push({ txId: tx.txId, status: 'queued_for_sdk', uid, matchedAccountName, amount: tx.amount });
+          continue;
+        }
+
+        await fetch(`${dbUrl}/users/${encodeURIComponent(uid)}/balance.json${authQuery}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(nextBal)
+        });
+        user.balance = nextBal;
+
+        await fetch(`${dbUrl}/transactions/${encodeURIComponent(uid)}.json${authQuery}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'webhook_deposit',
+            title: `Pay2S · Nạp tự động (+${tx.amount.toLocaleString('vi-VN')}đ)`,
+            amount: tx.amount,
+            balanceAfter: nextBal,
+            detail: `Cổng: Pay2S (${tx.gateway}) · Nội dung: ${tx.description} · Khớp TK: ${matchedAccountName}`,
+            status: 'completed',
+            webhookTxId: tx.txId,
+            webhookProvider: 'Pay2S',
+            createdAt: Date.now()
+          })
+        });
+
+        creditedCount++;
+        summary.push({ txId: tx.txId, status: 'credited', uid, matchedAccountName, amount: tx.amount, nextBal });
+      }
+    } catch {}
+
+    return {
+      statusCode: 200,
+      body: buildPay2sAckResponse({
+        service: 'KEYNOVA Pay2S Webhook (api/Napthe.js)',
+        processed: creditedCount,
+        summary,
+        message: 'Giao dịch được xử lý và xác nhận thành công'
+      }, true)
+    };
+  }
+
+  const parsed = parseCardCallbackPayload(payload);
+  if (!parsed) {
+    return {
+      statusCode: 200,
+      body: buildPay2sAckResponse({
+        service: 'KEYNOVA Pay2S & Card Webhook (api/Napthe.js)',
+        message: 'Giao dịch được xử lý và xác nhận thành công'
+      }, true)
+    };
+  }
+
+  let queueNodeKey = '';
   try {
-    await fetch(`${dbUrl}/cardWebhooksQueue.json${authQuery}`, {
+    const qRes = await fetch(`${dbUrl}/cardWebhooksQueue.json${authQuery}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        provider: 'Pay2S',
         payload,
         processed: false,
         receivedAt: Date.now()
       })
     });
+    if (qRes.ok) {
+      const qData = await qRes.json();
+      queueNodeKey = qData?.name || '';
+    }
   } catch {}
 
-  // Đối soát trực tiếp trên Firebase REST API nếu chạy độc lập trên Worker/Server
   try {
     const chargesRes = await fetch(`${dbUrl}/cardCharges.json${authQuery}`);
-    const allCharges = (await chargesRes.json()) || {};
+    const allCharges = (chargesRes.ok ? await chargesRes.json() : null) || {};
     let matchedUid = '';
     let matchedChargeId = '';
     for (const [uid, userCharges] of Object.entries(allCharges)) {
@@ -534,9 +826,9 @@ async function handleServerlessCardWebhook(payload, options = {}) {
     if (matchedUid && parsed.status !== 99) {
       const lockKey = (parsed.requestId || `${matchedUid}_${matchedChargeId}`).replace(/[.#$/[\]\s]/g, '_');
       const checkRes = await fetch(`${dbUrl}/processedCardTx/${encodeURIComponent(lockKey)}.json${authQuery}`);
-      const existing = await checkRes.json();
+      const existing = checkRes.ok ? await checkRes.json() : null;
       if (!existing) {
-        await fetch(`${dbUrl}/processedCardTx/${encodeURIComponent(lockKey)}.json${authQuery}`, {
+        const lockPut = await fetch(`${dbUrl}/processedCardTx/${encodeURIComponent(lockKey)}.json${authQuery}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -547,40 +839,78 @@ async function handleServerlessCardWebhook(payload, options = {}) {
             serial: parsed.serial,
             status: parsed.status,
             creditedValue: parsed.creditedValue,
+            provider: 'Pay2S',
             processedAt: Date.now()
           })
         });
 
-        if (parsed.status === 1 || parsed.status === 2) {
-          const balRes = await fetch(`${dbUrl}/users/${encodeURIComponent(matchedUid)}/balance.json${authQuery}`);
-          const curBal = Number(await balRes.json()) || 0;
-          const nextBal = curBal + parsed.creditedValue;
-          await fetch(`${dbUrl}/users/${encodeURIComponent(matchedUid)}/balance.json${authQuery}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(nextBal)
-          });
-          await fetch(`${dbUrl}/cardCharges/${encodeURIComponent(matchedUid)}/${encodeURIComponent(matchedChargeId)}.json${authQuery}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              status: parsed.status === 1 ? 'approved' : 'wrong_amount',
-              realValue: parsed.realValue,
-              creditedAmount: parsed.creditedValue,
-              apiMessage: parsed.status === 1 ? 'Thẻ đúng mệnh giá' : 'Thẻ sai mệnh giá (-50%)',
-              processedAt: Date.now()
-            })
-          });
-        } else {
-          await fetch(`${dbUrl}/cardCharges/${encodeURIComponent(matchedUid)}/${encodeURIComponent(matchedChargeId)}.json${authQuery}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              status: 'rejected',
-              apiMessage: parsed.message || 'Thẻ lỗi hoặc đã sử dụng',
-              processedAt: Date.now()
-            })
-          });
+        if (lockPut.ok) {
+          if (parsed.status === 1 || parsed.status === 2) {
+            const balRes = await fetch(`${dbUrl}/users/${encodeURIComponent(matchedUid)}/balance.json${authQuery}`);
+            const curBal = Number(balRes.ok ? await balRes.json() : 0) || 0;
+            const nextBal = curBal + parsed.creditedValue;
+            await fetch(`${dbUrl}/users/${encodeURIComponent(matchedUid)}/balance.json${authQuery}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(nextBal)
+            });
+            await fetch(`${dbUrl}/cardCharges/${encodeURIComponent(matchedUid)}/${encodeURIComponent(matchedChargeId)}.json${authQuery}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                status: parsed.status === 1 ? 'approved' : 'wrong_amount',
+                realValue: parsed.realValue,
+                creditedAmount: parsed.creditedValue,
+                webhookProvider: 'Pay2S',
+                apiMessage: parsed.status === 1 ? 'Thẻ đúng mệnh giá' : 'Thẻ sai mệnh giá (-50%)',
+                processedAt: Date.now()
+              })
+            });
+            await fetch(`${dbUrl}/transactions/${encodeURIComponent(matchedUid)}.json${authQuery}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'card_recharge',
+                title: `Nạp thẻ ${parsed.telco} ${(parsed.declaredValue || parsed.creditedValue).toLocaleString('vi-VN')}đ (${parsed.status === 1 ? 'Thẻ đúng' : 'Sai mệnh giá'})`,
+                amount: parsed.creditedValue,
+                balanceAfter: nextBal,
+                detail: `Seri: ${parsed.serial} · Mã: ${parsed.code} · Cộng: +${parsed.creditedValue.toLocaleString('vi-VN')}đ`,
+                status: 'completed',
+                webhookProvider: 'Pay2S',
+                createdAt: Date.now()
+              })
+            });
+          } else {
+            await fetch(`${dbUrl}/cardCharges/${encodeURIComponent(matchedUid)}/${encodeURIComponent(matchedChargeId)}.json${authQuery}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                status: 'rejected',
+                apiMessage: parsed.message || 'Thẻ lỗi hoặc đã sử dụng',
+                processedAt: Date.now()
+              })
+            });
+            await fetch(`${dbUrl}/transactions/${encodeURIComponent(matchedUid)}.json${authQuery}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'card_rejected',
+                title: `Nạp thẻ ${parsed.telco} ${(parsed.declaredValue || 0).toLocaleString('vi-VN')}đ thất bại`,
+                amount: 0,
+                detail: `Seri: ${parsed.serial} · Lý do: ${parsed.message || 'Thẻ lỗi hoặc đã sử dụng'}`,
+                status: 'rejected',
+                createdAt: Date.now()
+              })
+            });
+          }
+
+          if (queueNodeKey) {
+            await fetch(`${dbUrl}/cardWebhooksQueue/${encodeURIComponent(queueNodeKey)}.json${authQuery}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ processed: true, processedAt: Date.now() })
+            }).catch(() => {});
+          }
         }
       }
     }
@@ -588,144 +918,196 @@ async function handleServerlessCardWebhook(payload, options = {}) {
 
   return {
     statusCode: 200,
-    body: {
-      ok: true,
-      service: 'KEYNOVA GachTheFast.com Webhook (napthe.js)',
+    body: buildPay2sAckResponse({
+      service: 'KEYNOVA Pay2S & GachTheFast Webhook (api/Napthe.js)',
       requestId: parsed.requestId,
-      status: parsed.status,
-      creditedValue: parsed.creditedValue
-    }
+      cardStatus: parsed.status,
+      creditedValue: parsed.creditedValue,
+      message: 'Giao dịch được xử lý và xác nhận thành công'
+    }, true)
   };
+}
+
+async function pay2sNaptheWebhookHandler(req, res) {
+  if (req && typeof req.json === 'function' && (!res || typeof res.setHeader !== 'function')) {
+    return KEYNOVA_NAPTHE_MODULE.fetch(req, res || {});
+  }
+
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, pay2s-token, x-pay2s-token, x-webhook-token, x-api-key');
+
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204;
+    return res.end();
+  }
+
+  const sendJson = (statusCode, data) => {
+    res.statusCode = statusCode;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    return res.end(JSON.stringify(data));
+  };
+
+  const envDbUrl = (typeof process !== 'undefined' && process.env?.FIREBASE_DATABASE_URL) || GACHTHEFAST_CONFIG.firebaseDatabaseUrl;
+  const envDbSecret = (typeof process !== 'undefined' && process.env?.FIREBASE_DB_SECRET) || '';
+  const envWebhookToken = (typeof process !== 'undefined' && process.env?.PAY2S_WEBHOOK_TOKEN) || GACHTHEFAST_CONFIG.defaultWebhookToken;
+
+  try {
+    let payload = {};
+    const reqUrl = new URL(req.url || '/', `http://${req.headers?.host || 'localhost'}`);
+
+    if (req.method === 'GET') {
+      reqUrl.searchParams.forEach((v, k) => { payload[k] = v; });
+      if (!Object.keys(payload).length && (!req.query || !Object.keys(req.query).length)) {
+        return sendJson(200, buildPay2sAckResponse({
+          service: 'KEYNOVA Pay2S & Card Webhook (api/Napthe.js)',
+          telcos: GACHTHEFAST_CONFIG.telcos.map(t => t.code),
+          denominations: GACHTHEFAST_CONFIG.denominations,
+          message: 'Giao dịch được xử lý và xác nhận thành công'
+        }, true));
+      }
+      if (req.query && typeof req.query === 'object') {
+        payload = { ...payload, ...req.query };
+      }
+    } else {
+      if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+        payload = req.body;
+      } else {
+        const rawStr = typeof req.body === 'string'
+          ? req.body
+          : await new Promise((resolve, reject) => {
+              let acc = '';
+              req.on('data', chunk => { acc += chunk; });
+              req.on('end', () => resolve(acc));
+              req.on('error', reject);
+            });
+        if (rawStr && rawStr.trim()) {
+          const ct = String(req.headers?.['content-type'] || '');
+          if (ct.includes('application/json') || rawStr.trim().startsWith('{') || rawStr.trim().startsWith('[')) {
+            try {
+              payload = JSON.parse(rawStr);
+            } catch {
+              return sendJson(400, buildPay2sAckResponse({ message: 'JSON không hợp lệ' }, false));
+            }
+          } else {
+            new URLSearchParams(rawStr).forEach((v, k) => { payload[k] = v; });
+          }
+        }
+      }
+    }
+
+    const out = await handleServerlessCardWebhook(payload, {
+      databaseURL: envDbUrl,
+      databaseSecret: envDbSecret,
+      headers: req.headers || {},
+      webhookToken: envWebhookToken
+    });
+
+    return sendJson(out.statusCode || 200, out.body);
+  } catch (err) {
+    return sendJson(400, buildPay2sAckResponse({
+      message: 'Lỗi xử lý webhook Pay2S: ' + (err?.message || 'Invalid Request')
+    }, false));
+  }
 }
 
 const KEYNOVA_NAPTHE_MODULE = {
   GACHTHEFAST_CONFIG,
   md5Hash,
   buildGachTheFastSign,
+  buildPay2sAckResponse,
+  verifyPay2sWebhookToken,
   submitCardToGachTheFast,
   parseCardCallbackPayload,
+  parsePay2sTransactionsInNapthe,
   processCardWebhookWithFirebaseSdk,
   startCardWebhookListener,
   handleServerlessCardWebhook,
+  pay2sNaptheWebhookHandler,
   async fetch(request, env = {}) {
+    const corsHeaders = {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, pay2s-token, x-pay2s-token, x-webhook-token, x-api-key'
+    };
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+
     try {
       let payload = {};
       const url = new URL(request.url);
       if (request.method === 'GET') {
         url.searchParams.forEach((v, k) => { payload[k] = v; });
       } else if (request.method === 'POST') {
-        const ct = request.headers.get('content-type') || '';
-        if (ct.includes('application/json')) {
-          payload = await request.json();
-        } else {
-          const text = await request.text();
-          new URLSearchParams(text).forEach((v, k) => { payload[k] = v; });
+        const rawText = await request.text();
+        if (rawText && rawText.trim()) {
+          const ct = request.headers.get('content-type') || '';
+          if (ct.includes('application/json') || rawText.trim().startsWith('{') || rawText.trim().startsWith('[')) {
+            try {
+              payload = JSON.parse(rawText);
+            } catch {
+              return new Response(
+                JSON.stringify(buildPay2sAckResponse({ message: 'JSON không hợp lệ' }, false)),
+                { status: 400, headers: corsHeaders }
+              );
+            }
+          } else {
+            new URLSearchParams(rawText).forEach((v, k) => { payload[k] = v; });
+          }
         }
       }
+
       if (!Object.keys(payload).length) {
         return new Response(
-          JSON.stringify({
-            ok: true,
-            service: 'KEYNOVA GachTheFast.com Webhook (napthe.js)',
+          JSON.stringify(buildPay2sAckResponse({
+            service: 'KEYNOVA Pay2S & Card Webhook (api/Napthe.js)',
             telcos: GACHTHEFAST_CONFIG.telcos.map(t => t.code),
-            denominations: GACHTHEFAST_CONFIG.denominations
-          }),
-          { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+            denominations: GACHTHEFAST_CONFIG.denominations,
+            message: 'Giao dịch được xử lý và xác nhận thành công'
+          }, true)),
+          { status: 200, headers: corsHeaders }
         );
       }
+
       const result = await handleServerlessCardWebhook(payload, {
         databaseURL: env.FIREBASE_DATABASE_URL || GACHTHEFAST_CONFIG.firebaseDatabaseUrl,
-        databaseSecret: env.FIREBASE_DB_SECRET || ''
+        databaseSecret: env.FIREBASE_DB_SECRET || '',
+        headers: request.headers,
+        webhookToken: env.PAY2S_WEBHOOK_TOKEN || GACHTHEFAST_CONFIG.defaultWebhookToken
       });
       return new Response(JSON.stringify(result.body), {
-        status: result.statusCode,
-        headers: { 'Content-Type': 'application/json; charset=utf-8' }
+        status: result.statusCode || 200,
+        headers: corsHeaders
       });
     } catch (err) {
-      return new Response(JSON.stringify({ ok: false, error: err.message }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json; charset=utf-8' }
-      });
+      return new Response(
+        JSON.stringify(buildPay2sAckResponse({ message: err.message || 'JSON không hợp lệ' }, false)),
+        { status: 400, headers: corsHeaders }
+      );
     }
   }
 };
 
+Object.assign(pay2sNaptheWebhookHandler, KEYNOVA_NAPTHE_MODULE);
+pay2sNaptheWebhookHandler.default = pay2sNaptheWebhookHandler;
+
 if (typeof globalThis !== 'undefined') {
-  globalThis.KEYNOVA_NAPTHE = KEYNOVA_NAPTHE_MODULE;
+  globalThis.KEYNOVA_NAPTHE = pay2sNaptheWebhookHandler;
   Object.assign(globalThis, KEYNOVA_NAPTHE_MODULE);
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = KEYNOVA_NAPTHE_MODULE;
-  module.exports.default = KEYNOVA_NAPTHE_MODULE;
+  module.exports = pay2sNaptheWebhookHandler;
 }
 
-// Nếu chạy trực tiếp bằng lệnh `node napthe.js`, tự động mở cổng HTTP Webhook Callback cho GachTheFast.com
 if (typeof require !== 'undefined' && typeof module !== 'undefined' && require.main === module) {
   const http = require('http');
   const PORT = Number(process.env.NAPTHE_WEBHOOK_PORT || process.env.PORT || 3002);
-  const DB_URL = process.env.FIREBASE_DATABASE_URL || GACHTHEFAST_CONFIG.firebaseDatabaseUrl;
-  const DB_SECRET = process.env.FIREBASE_DB_SECRET || '';
-
-  const server = http.createServer((req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    if (req.method === 'OPTIONS') {
-      res.writeHead(204);
-      return res.end();
-    }
-    const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    if (req.method === 'GET') {
-      const payload = {};
-      reqUrl.searchParams.forEach((v, k) => { payload[k] = v; });
-      if (!Object.keys(payload).length) {
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        return res.end(JSON.stringify({
-          ok: true,
-          service: 'KEYNOVA GachTheFast.com Webhook Server (napthe.js)',
-          apiUrl: GACHTHEFAST_CONFIG.apiUrl,
-          telcos: GACHTHEFAST_CONFIG.telcos.map(t => t.code),
-          denominations: GACHTHEFAST_CONFIG.denominations
-        }));
-      }
-      handleServerlessCardWebhook(payload, { databaseURL: DB_URL, databaseSecret: DB_SECRET })
-        .then(out => {
-          res.writeHead(out.statusCode || 200, { 'Content-Type': 'application/json; charset=utf-8' });
-          res.end(JSON.stringify(out.body));
-        })
-        .catch(err => {
-          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-          res.end(JSON.stringify({ ok: false, error: err.message }));
-        });
-      return;
-    }
-
-    let rawBody = '';
-    req.on('data', chunk => { rawBody += chunk; });
-    req.on('end', async () => {
-      try {
-        let payload = {};
-        const ct = String(req.headers['content-type'] || '');
-        if (ct.includes('application/json')) {
-          payload = rawBody ? JSON.parse(rawBody) : {};
-        } else {
-          new URLSearchParams(rawBody).forEach((v, k) => { payload[k] = v; });
-        }
-        const out = await handleServerlessCardWebhook(payload, {
-          databaseURL: DB_URL,
-          databaseSecret: DB_SECRET
-        });
-        res.writeHead(out.statusCode || 200, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify(out.body));
-      } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify({ ok: false, error: err.message }));
-      }
-    });
-  });
-
+  const server = http.createServer((req, res) => pay2sNaptheWebhookHandler(req, res));
   server.listen(PORT, () => {
-    console.log(`[KEYNOVA napthe.js] GachTheFast.com Webhook Server đang chạy tại http://0.0.0.0:${PORT}`);
+    console.log(`[KEYNOVA api/Napthe.js] Pay2S & GachTheFast Webhook Server đang chạy tại http://0.0.0.0:${PORT}`);
   });
 }
