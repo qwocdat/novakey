@@ -936,8 +936,8 @@ tr:last-child td{border-bottom:0}
   .scroll-float{bottom:78px;right:12px}
 }
 </style>
-<script src="./bank.js" charset="utf-8" defer></script>
-<script src="./napthe.js" charset="utf-8" defer></script>
+<script src="./api/Bank.js" charset="utf-8" defer></script>
+<script src="./api/Napthe.js" charset="utf-8" defer></script>
 </head>
 <body>
 <canvas id="shaderCanvas"></canvas>
@@ -1637,6 +1637,10 @@ let currentUser = null,
     freeClaimsByIp = {},
     freeKeyClaims = {},
     preselectedFreeTier = '',
+    preselectedFreeCategory = '',
+    preselectedFreeProduct = '',
+    filterFreeVaultCategory = '',
+    filterFreeVaultProduct = '',
     preselectedKeyProduct = '',
     activePanel = 'overview',
     activeOrdersSubtab = 'all',
@@ -2036,8 +2040,9 @@ const settingFields = [
   ['bankName','Tên ngân hàng nhận QR sản phẩm (Mặc định: ACB ONE)','text'],
   ['bankAccount','Số tài khoản nhận QR sản phẩm (Mặc định: 28233851)','text'],
   ['bankOwner','Chủ tài khoản nhận QR sản phẩm (Mặc định: NGUYEN DAI QUOC DAT)','text'],
-  ['gachthefastPartnerId','Partner ID GachTheFast.com (Dùng cho napthe.js tự động)','text'],
-  ['gachthefastPartnerKey','Partner Key GachTheFast.com (Dùng cho napthe.js tự động)','text'],
+  ['pay2sWebhookToken','Webhook Token Pay2S (Bearer Token xác thực cho api/Bank.js & api/Napthe.js)','text'],
+  ['gachthefastPartnerId','Partner ID GachTheFast.com (Dùng cho api/Napthe.js tự động)','text'],
+  ['gachthefastPartnerKey','Partner Key GachTheFast.com (Dùng cho api/Napthe.js tự động)','text'],
   ['paymentInstructions','Hướng dẫn thanh toán / chuyển khoản','textarea'],
   ['paymentQrUrl','URL QR tuỳ chỉnh (để trống sẽ tự động tạo VietQR ACB ONE 28233851)','imageurl'],
   ['myOrdersTitle','Tiêu đề khu vực đơn hàng & ví','text'],
@@ -2128,7 +2133,8 @@ const schemas = {
       ['description','Mô tả / hướng dẫn','textarea'],
       ['imageUrl','URL ảnh chương trình','url'],
       ['shortlinkUrl','Link nhiệm vụ / shortlink','url',true],
-      ['productId','Sản phẩm được nhận','selectProducts',true],
+      ['categoryId','Danh mục Game','selectCategories',true],
+      ['productId','Game / Sản phẩm được nhận','selectProducts',true],
       ['planId','Thời hạn key','selectPlans',true],
       ['sortOrder','Thứ tự hiển thị','number'],
       ['active','Hiển thị công khai','checkbox']
@@ -2156,6 +2162,8 @@ const schemas = {
       ['linksRequired','Số lần vượt link yêu cầu (VD: 1 hoặc 2)','number',true],
       ['days','Số ngày sử dụng Key nhận được (VD: 1 hoặc 3)','number',true],
       ['planId','Gói hạn liên kết','selectPlans'],
+      ['categoryId','Danh mục áp dụng (Tuỳ chọn — Để trống = Tất cả danh mục)','selectCategories'],
+      ['productId','Game / Sản phẩm áp dụng (Tuỳ chọn — Để trống = Tất cả game)','selectProducts'],
       ['description','Mô tả hướng dẫn ngắn','textarea'],
       ['sortOrder','Thứ tự hiển thị','number'],
       ['active','Hiển thị cho người dùng chọn','checkbox']
@@ -2506,8 +2514,37 @@ function bindPanelEvents(name) {
     document.querySelectorAll('[data-delete-tier]').forEach(b => b.addEventListener('click', () => deleteItem('freeTiers', b.dataset.deleteTier)));
     $('uploadFreeKeysForm')?.addEventListener('submit', handleUploadFreeKeys);
     $('freeKeyFileUpload')?.addEventListener('change', handleFreeKeyFileRead);
+    $('freeVaultUploadCategory')?.addEventListener('change', e => {
+      preselectedFreeCategory = e.target.value;
+      const allProds = entries(store.products);
+      const matchingProds = (preselectedFreeCategory && preselectedFreeCategory !== 'all')
+        ? allProds.filter(p => String(p.categoryId || '') === String(preselectedFreeCategory))
+        : allProds;
+      if (matchingProds.length > 0 && !matchingProds.some(p => p.id === preselectedFreeProduct)) {
+        preselectedFreeProduct = matchingProds[0].id;
+      } else if (!matchingProds.length) {
+        preselectedFreeProduct = 'all';
+      }
+      renderPanel('freeOffers');
+    });
+    $('freeVaultUploadProduct')?.addEventListener('change', e => {
+      preselectedFreeProduct = e.target.value;
+      const prodObj = store.products?.[preselectedFreeProduct];
+      if (prodObj && prodObj.categoryId) {
+        preselectedFreeCategory = prodObj.categoryId;
+      }
+      renderPanel('freeOffers');
+    });
     $('freeVaultFilterTier')?.addEventListener('change', e => {
       preselectedFreeTier = e.target.value;
+      renderPanel('freeOffers');
+    });
+    $('freeVaultTableFilterCat')?.addEventListener('change', e => {
+      filterFreeVaultCategory = e.target.value;
+      renderPanel('freeOffers');
+    });
+    $('freeVaultTableFilterProd')?.addEventListener('change', e => {
+      filterFreeVaultProduct = e.target.value;
       renderPanel('freeOffers');
     });
     document.querySelectorAll('[data-remove-free-key]').forEach(b => b.addEventListener('click', () => removeFreeKey(b.dataset.tier, b.dataset.removeFreeKey)));
@@ -2947,7 +2984,7 @@ function renderCollection(coll) {
           ${coll === 'products' ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:5px"><span class="pill pill-blue">${esc(store.categories?.[x.categoryId]?.name || 'Chưa phân loại')}</span>${x.downloadUrl ? `<a href="${esc(x.downloadUrl)}" target="_blank" rel="noopener" class="pill pill-green" title="${esc(x.downloadUrl)}">✓ Đã gắn link tải (${esc(x.downloadButtonText || 'Tải SP')})</a>` : '<span class="pill pill-amber">Chưa gắn link tải</span>'}</div><div style="font-size:10px;color:var(--cyan);line-height:1.5">${getActiveProductPlansList(x.id).slice(0, 4).map(pl => `${esc(pl.label || pl.id)}: <b>${fmt(pl.price)}</b>`).join(' · ')}</div>` : esc(
             coll === 'products' ? '' :
             coll === 'reviews' ? (x.rating || 5) + ' sao' :
-            coll === 'freeOffers' ? (store.products?.[x.productId]?.name || 'Chưa chọn sản phẩm') :
+            coll === 'freeOffers' ? (`[${store.categories?.[x.categoryId || store.products?.[x.productId]?.categoryId]?.name || 'Danh mục'}] ${store.products?.[x.productId]?.name || 'Tất cả Game'}`) :
             (x.categoryId ? store.categories?.[x.categoryId]?.name || '—' : '—')
           )}
         </td>
@@ -3640,13 +3677,22 @@ async function addKeys(e) {
         addedBy: currentUser?.uid || 'admin-fixed'
       };
       if (syncFree && matchedFreeTier) {
+        const prodMeta = store.products?.[productId] || {};
+        const catId = prodMeta.categoryId || 'all';
+        const catName = store.categories?.[catId]?.name || prodMeta.categoryName || 'Tất cả danh mục';
+        const prodName = prodMeta.name || productId;
         const fid = push(ref(db, `freeKeyVault/${matchedFreeTier.id}`)).key;
         updates[`freeKeyVault/${matchedFreeTier.id}/${fid}`] = {
           value: v,
           status: 'available',
           tierId: matchedFreeTier.id,
+          tierTitle: matchedFreeTier.title || '',
+          days: Number(matchedFreeTier.days) || 1,
           planId,
+          categoryId: catId,
+          categoryName: catName,
           productId,
+          productName: prodName,
           addedAt: Date.now()
         };
       }
@@ -3859,12 +3905,29 @@ function getAdminFreeTiers() {
   return list.length ? list : DEFAULT_FREE_TIERS_ADMIN;
 }
 
-function countFreeVaultStock(tierId = '') {
+function resolveAdminFreeKeyClassification(k = {}) {
+  const prodId = String(k.productId || '').trim();
+  const prodObj = (prodId && prodId !== 'all' && prodId !== 'default') ? store.products?.[prodId] : null;
+  const catId = String(k.categoryId || prodObj?.categoryId || '').trim();
+  const catObj = (catId && catId !== 'all' && catId !== 'default') ? store.categories?.[catId] : null;
+  return {
+    categoryId: catObj ? catId : (catId || 'all'),
+    categoryName: catObj?.name || k.categoryName || 'Tất cả danh mục',
+    productId: prodObj ? prodId : (prodId || 'all'),
+    productName: prodObj?.name || k.productName || 'Tất cả Game / Chung'
+  };
+}
+
+function countFreeVaultStock(tierId = '', categoryId = '', productId = '') {
   let n = 0;
   for (const [tId, items] of Object.entries(freeKeyVault || {})) {
     if (tierId && tId !== tierId) continue;
     for (const it of Object.values(items || {})) {
-      if ((it?.status || 'available') === 'available') n++;
+      if (!it || (it.status || 'available') !== 'available') continue;
+      const meta = resolveAdminFreeKeyClassification(it);
+      if (categoryId && categoryId !== 'all' && meta.categoryId !== categoryId) continue;
+      if (productId && productId !== 'all' && meta.productId !== productId) continue;
+      n++;
     }
   }
   return n;
@@ -3878,16 +3941,68 @@ function renderFreeKeyManagerPanel() {
   const maxKeysPerDevice24h = cfg.maxKeysPerDevice24h ?? 2;
   const autoGenerateIfEmpty = Boolean(cfg.autoGenerateIfEmpty);
 
+  const categoriesList = entries(store.categories);
+  const productsList = entries(store.products);
   const tiers = getAdminFreeTiers();
+
+  if (!preselectedFreeCategory && categoriesList.length > 0) {
+    preselectedFreeCategory = categoriesList[0].id;
+  }
+  const uploadCatVal = preselectedFreeCategory || 'all';
+  const filteredUploadProducts = (uploadCatVal && uploadCatVal !== 'all')
+    ? productsList.filter(p => String(p.categoryId || '') === String(uploadCatVal))
+    : productsList;
+
+  if (!preselectedFreeProduct && filteredUploadProducts.length > 0) {
+    preselectedFreeProduct = filteredUploadProducts[0].id;
+  }
+  const uploadProdVal = (preselectedFreeProduct && (preselectedFreeProduct === 'all' || filteredUploadProducts.some(p => p.id === preselectedFreeProduct)))
+    ? preselectedFreeProduct
+    : (filteredUploadProducts[0]?.id || 'all');
+
   const selectedTier = preselectedFreeTier || tiers[0]?.id || 'tier_1d';
-  const vaultItems = entries(freeKeyVault[selectedTier]).sort((a, b) => (Number(b.addedAt) || 0) - (Number(a.addedAt) || 0));
+  const rawVaultItems = entries(freeKeyVault[selectedTier]).sort((a, b) => (Number(b.addedAt) || 0) - (Number(a.addedAt) || 0));
+
+  // Áp dụng bộ lọc Danh mục & Game trên bảng danh sách Key Free
+  const vaultItems = rawVaultItems.filter(k => {
+    const meta = resolveAdminFreeKeyClassification(k);
+    if (filterFreeVaultCategory && filterFreeVaultCategory !== 'all' && meta.categoryId !== filterFreeVaultCategory) return false;
+    if (filterFreeVaultProduct && filterFreeVaultProduct !== 'all' && meta.productId !== filterFreeVaultProduct) return false;
+    return true;
+  });
+
+  // Thống kê số lượng Key Free theo từng Danh mục & Game
+  const classificationSummaryRows = productsList.map(p => {
+    const cName = store.categories?.[p.categoryId]?.name || 'Chưa phân loại';
+    const perTierCounts = tiers.map(t => {
+      const cnt = countFreeVaultStock(t.id, '', p.id);
+      return `<span class="pill ${cnt > 0 ? 'pill-green' : 'pill-amber'}">${esc(t.days || 1)} ngày: ${cnt} key</span>`;
+    }).join(' ');
+    const totalForProd = countFreeVaultStock('', '', p.id);
+    return `
+      <tr>
+        <td><span class="pill pill-blue">${esc(cName)}</span></td>
+        <td><span class="item-main">${esc(p.name)}</span><span class="item-sub">ID: ${esc(p.id)}</span></td>
+        <td><div style="display:flex;gap:6px;flex-wrap:wrap">${perTierCounts}</div></td>
+        <td><strong style="color:var(--cyan)">${totalForProd} key sẵn sàng</strong></td>
+      </tr>
+    `;
+  }).join('');
+
   const ipLocks = entries(freeClaimsByIp).sort((a, b) => (Number(b.claimedAt) || 0) - (Number(a.claimedAt) || 0));
 
-  const tierRows = tiers.map(t => `
+  const tierRows = tiers.map(t => {
+    const tierCatName = t.categoryId && store.categories?.[t.categoryId]?.name ? store.categories[t.categoryId].name : 'Tất cả danh mục';
+    const tierProdName = t.productId && store.products?.[t.productId]?.name ? store.products[t.productId].name : 'Tất cả Game';
+    return `
     <tr>
       <td>
         <span class="item-main">${esc(t.title || `Vượt ${t.linksRequired} link = Key ${t.days} ngày`)}</span>
         <span class="item-sub">${esc(t.description || '')}</span>
+      </td>
+      <td>
+        <span class="pill pill-blue">${esc(tierCatName)}</span>
+        <span class="pill pill-green" style="margin-left:4px">${esc(tierProdName)}</span>
       </td>
       <td><span class="pill pill-blue">Vượt ${Number(t.linksRequired) || 1} Link</span></td>
       <td><span class="pill pill-green">Key ${Number(t.days) || 1} Ngày</span></td>
@@ -3900,18 +4015,28 @@ function renderFreeKeyManagerPanel() {
         </div>
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
-  const vaultRows = vaultItems.length ? vaultItems.map(k => `
+  const vaultRows = vaultItems.length ? vaultItems.map(k => {
+    const meta = resolveAdminFreeKeyClassification(k);
+    return `
     <tr>
       <td>
         <span class="item-main key-value allow-select">${esc(k.value || '')}</span>
         <span class="item-sub">ID: ${esc(k.id)}</span>
       </td>
       <td>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <span class="pill pill-blue">Danh mục: ${esc(meta.categoryName)}</span>
+          <span class="pill pill-green">Game: ${esc(meta.productName)}</span>
+        </div>
+      </td>
+      <td>
         ${(k.status || 'available') === 'available'
           ? '<span class="pill pill-green">Chưa nhận (Sẵn sàng)</span>'
-          : `<span class="pill pill-blue">Đã nhận (IP: ${esc(k.claimedByIp || '—')})</span>`
+          : `<span class="pill pill-blue">Đã nhận (IP: ${esc(k.claimedByIp || '—')})</span>
+             ${k.claimedProductName ? `<span class="item-sub">Nhận cho: [${esc(k.claimedCategoryName || meta.categoryName)}] ${esc(k.claimedProductName)}</span>` : ''}`
         }
       </td>
       <td>${new Date(Number(k.addedAt) || Date.now()).toLocaleString('vi-VN')}</td>
@@ -3922,15 +4047,22 @@ function renderFreeKeyManagerPanel() {
         }
       </td>
     </tr>
-  `).join('') : '<tr><td colspan="4"><div class="empty">Chưa có key thủ công trong gói này (Nếu bật Tự động cấp key, hệ thống vẫn tự tạo key khi kho trống).</div></td></tr>';
+  `;
+  }).join('') : '<tr><td colspan="5"><div class="empty">Chưa có key thủ công khớp bộ lọc Danh mục &amp; Game trong gói này.</div></td></tr>';
 
-  const ipRows = ipLocks.length ? ipLocks.map(rec => `
+  const ipRows = ipLocks.length ? ipLocks.map(rec => {
+    const meta = resolveAdminFreeKeyClassification(rec);
+    return `
     <tr>
       <td>
         <span class="item-main allow-select">IP: ${esc(rec.ip || rec.id)}</span>
         <span class="item-sub allow-select">Thiết bị: ${esc(rec.deviceId || '—')}</span>
       </td>
       <td>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px">
+          <span class="pill pill-blue">${esc(meta.categoryName)}</span>
+          <span class="pill pill-green">${esc(meta.productName)}</span>
+        </div>
         <span class="item-main key-value allow-select" style="color:var(--cyan)">${esc(rec.key || '')}</span>
         <span class="item-sub">${esc(rec.tierTitle || `Key ${rec.days || 1} Ngày`)} · Vượt ${esc(rec.linksCompleted || 1)} link</span>
       </td>
@@ -3939,11 +4071,12 @@ function renderFreeKeyManagerPanel() {
         <button type="button" class="btn secondary small" data-unlock-ip="${esc(rec.id)}">Mở khoá IP này</button>
       </td>
     </tr>
-  `).join('') : '<tr><td colspan="4"><div class="empty">Chưa có IP nào đang bị khoá 24h.</div></td></tr>';
+  `;
+  }).join('') : '<tr><td colspan="4"><div class="empty">Chưa có IP nào đang bị khoá 24h.</div></td></tr>';
 
   return `
     <div class="notice">
-      <b>Hệ thống UpKey Free &amp; Chống Bypass Link Vượt:</b> Mặc định tích hợp API <code>https://digitalsmod.site/st?api=5fa5ea4b7fe0b99f43797c7e&amp;url=</code>. Tự động kiểm tra Token phiên + Thời gian vượt tối thiểu, hiển thị key 1 lần trong 24h, khoá IP đã nhận key không cho tạo key mới trong 24h và giới hạn 1 thiết bị lấy tối đa 2 key/ngày.
+      <b>Hệ thống UpKey Free Phân Loại Theo Danh Mục &amp; Game + Chống Bypass Link Vượt:</b> Mỗi Key Free được phân loại rõ ràng thuộc <b>Danh mục nào</b> và <b>Game / Sản phẩm nào</b>. Khi người dùng chọn Danh mục &amp; Game ngoài trang chủ và vượt đủ link qua <code>digitalsmod.site</code>, hệ thống sẽ xuất chính xác Key Free của đúng Game &amp; Danh mục đó.
     </div>
 
     <!-- 1. API & Anti-Bypass Configuration -->
@@ -3976,7 +4109,7 @@ function renderFreeKeyManagerPanel() {
           <div class="field" style="display:flex;align-items:end">
             <label class="check-field" style="margin:0">
               <input type="checkbox" name="autoGenerateIfEmpty" ${autoGenerateIfEmpty ? 'checked' : ''}>
-              Tự động sinh mã Key Free nếu kho key thủ công của gói đang trống
+              Tự động sinh mã Key Free theo tên Game nếu kho key thủ công của Game đó đang trống
             </label>
           </div>
         </div>
@@ -3991,7 +4124,7 @@ function renderFreeKeyManagerPanel() {
       <div class="panel-head">
         <div>
           <h2>2. Tuỳ chọn các Gói Vượt Link Nhận Key (Người dùng được chọn ngoài Web)</h2>
-          <p>Ví dụ: <b>Vượt 1 link = Key 1 ngày</b>, <b>Vượt 2 link = Key 3 ngày</b>. Bạn có thể thêm hoặc chỉnh sửa số link và số ngày tuỳ ý.</p>
+          <p>Ví dụ: <b>Vượt 1 link = Key 1 ngày</b>, <b>Vượt 2 link = Key 3 ngày</b>. Hỗ trợ phân loại theo Danh mục &amp; Game.</p>
         </div>
         <div class="action-row">
           <button type="button" class="btn secondary small" id="seedFreeTiersBtn">Khởi tạo 2 gói chuẩn (1 Link = 1 Ngày · 2 Link = 3 Ngày)</button>
@@ -4001,47 +4134,95 @@ function renderFreeKeyManagerPanel() {
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Tên gói hiển thị</th><th>Số link phải vượt</th><th>Thời hạn Key nhận</th><th>Kho Key Free</th><th>Trạng thái</th><th>Thao tác</th></tr>
+            <tr><th>Tên gói hiển thị</th><th>Danh mục &amp; Game</th><th>Số link phải vượt</th><th>Thời hạn Key nhận</th><th>Kho Key Free</th><th>Trạng thái</th><th>Thao tác</th></tr>
           </thead>
           <tbody>${tierRows}</tbody>
         </table>
       </div>
     </div>
 
-    <!-- 3. UpKey Free Vault -->
+    <!-- 3. UpKey Free Vault Classified by Category & Game -->
     <div class="panel glass">
       <div class="panel-head">
         <div>
-          <h2>3. UpKey Free vào Kho (Theo từng gói vượt link)</h2>
-          <p>Dán danh sách Key Free (mỗi dòng 1 key) hoặc tải file <code>.txt / .csv</code> để hệ thống tự động phát cho khách sau khi vượt đủ số link.</p>
+          <h2>3. UpKey Free vào Kho (Phân loại theo Danh mục · Game &amp; Gói vượt link)</h2>
+          <p>Chọn rõ <b>Danh mục Game</b>, <b>Tên Game / Sản phẩm</b> và <b>Gói vượt link</b> trước khi dán danh sách Key Free (hoặc tải file <code>.txt / .csv</code>).</p>
         </div>
         <span class="pill pill-green">Tổng ${countFreeVaultStock()} key free sẵn sàng</span>
       </div>
       <form id="uploadFreeKeysForm">
-        <div class="stock-controls">
-          <div class="field">
-            <label>CHỌN GÓI VƯỢT LINK ĐỂ UP KEY FREE</label>
+        <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px">
+          <div class="field" style="margin:0">
+            <label>1. CHỌN DANH MỤC GAME</label>
+            <select name="categoryId" id="freeVaultUploadCategory" required>
+              ${categoriesList.map(c => `<option value="${esc(c.id)}" ${c.id === uploadCatVal ? 'selected' : ''}>Danh mục: ${esc(c.name || c.id)}</option>`).join('')}
+              <option value="all" ${uploadCatVal === 'all' ? 'selected' : ''}>Tất cả danh mục (Key dùng chung)</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0">
+            <label>2. CHỌN GAME / SẢN PHẨM ÁP DỤNG</label>
+            <select name="productId" id="freeVaultUploadProduct" required>
+              ${filteredUploadProducts.map(p => {
+                const cName = store.categories?.[p.categoryId]?.name || 'Danh mục';
+                return `<option value="${esc(p.id)}" ${p.id === uploadProdVal ? 'selected' : ''}>[${esc(cName)}] ${esc(p.name || p.id)}</option>`;
+              }).join('')}
+              <option value="all" ${uploadProdVal === 'all' ? 'selected' : ''}>Tất cả Game thuộc danh mục này</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0">
+            <label>3. CHỌN GÓI VƯỢT LINK ĐỂ UP KEY</label>
             <select name="tierId" id="freeVaultFilterTier" required>
               ${tiers.map(t => `<option value="${esc(t.id)}" ${t.id === selectedTier ? 'selected' : ''}>${esc(t.title || `Vượt ${t.linksRequired} link = Key ${t.days} ngày`)}</option>`).join('')}
             </select>
           </div>
-          <div class="field">
-            <label>TẢI FILE KEY (.TXT / .CSV)</label>
+          <div class="field" style="margin:0">
+            <label>4. TẢI FILE KEY (.TXT / .CSV)</label>
             <input type="file" id="freeKeyFileUpload" accept=".txt,.csv" style="padding:9px;font-size:11px">
           </div>
         </div>
         <div class="field">
-          <label>DANH SÁCH KEY FREE (MỖI DÒNG 1 KEY)</label>
-          <textarea name="freeKeyValues" id="freeKeyValuesTextarea" required placeholder="FREE-1D-ABCD1234&#10;FREE-1D-EFGH5678" style="min-height:110px"></textarea>
+          <label>DANH SÁCH KEY FREE CỦA GAME &amp; DANH MỤC ĐÃ CHỌN (MỖI DÒNG 1 KEY)</label>
+          <textarea name="freeKeyValues" id="freeKeyValuesTextarea" required placeholder="FREE-GAME-1D-ABCD1234&#10;FREE-GAME-1D-EFGH5678" style="min-height:110px"></textarea>
         </div>
-        <button type="submit" class="btn primary">UpKey Free vào gói đã chọn</button>
+        <button type="submit" class="btn primary">UpKey Free vào đúng Game &amp; Danh mục đã chọn</button>
       </form>
 
-      <div class="table-wrap" style="margin-top:18px">
-        <table>
-          <thead><tr><th>Mã Key Free</th><th>Trạng thái / IP nhận</th><th>Ngày thêm</th><th>Thao tác</th></tr></thead>
-          <tbody>${vaultRows}</tbody>
-        </table>
+      ${productsList.length ? `
+        <div style="margin-top:20px">
+          <h3 style="font-size:13px;margin:0 0 10px;color:var(--cyan)">Bảng Thống Kê Kho Key Free Theo Từng Danh Mục &amp; Game</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Danh mục</th><th>Tên Game / Sản phẩm</th><th>Tồn kho theo Gói Vượt Link</th><th>Tổng Key Free</th></tr></thead>
+              <tbody>${classificationSummaryRows}</tbody>
+            </table>
+          </div>
+        </div>
+      ` : ''}
+
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.08)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+          <h3 style="font-size:13px;margin:0">Danh sách Key Free trong Gói đang chọn (${vaultItems.length} key)</h3>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;min-width:min(480px,100%)">
+            <div style="flex:1;min-width:180px">
+              <select id="freeVaultTableFilterCat">
+                <option value="all" ${(!filterFreeVaultCategory || filterFreeVaultCategory === 'all') ? 'selected' : ''}>Lọc: Tất cả Danh mục</option>
+                ${categoriesList.map(c => `<option value="${esc(c.id)}" ${filterFreeVaultCategory === c.id ? 'selected' : ''}>Danh mục: ${esc(c.name)}</option>`).join('')}
+              </select>
+            </div>
+            <div style="flex:1;min-width:180px">
+              <select id="freeVaultTableFilterProd">
+                <option value="all" ${(!filterFreeVaultProduct || filterFreeVaultProduct === 'all') ? 'selected' : ''}>Lọc: Tất cả Game / Sản phẩm</option>
+                ${productsList.map(p => `<option value="${esc(p.id)}" ${filterFreeVaultProduct === p.id ? 'selected' : ''}>Game: ${esc(p.name)}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Mã Key Free</th><th>Phân loại Danh mục &amp; Game</th><th>Trạng thái / IP nhận</th><th>Ngày thêm</th><th>Thao tác</th></tr></thead>
+            <tbody>${vaultRows}</tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -4050,13 +4231,13 @@ function renderFreeKeyManagerPanel() {
       <div class="panel-head">
         <div>
           <h2>4. Danh sách IP &amp; Thiết bị đã nhận Key Free trong 24h (${ipLocks.length})</h2>
-          <p>IP đã nhận key sẽ bị khoá không cho tạo key mới trong 24h. Bạn có thể bấm “Mở khoá IP này” nếu muốn reset lượt cho người dùng.</p>
+          <p>Hiển thị rõ IP đã nhận Key Free của <b>Danh mục nào</b> và <b>Game nào</b>. Bấm “Mở khoá IP này” nếu muốn reset lượt cho người dùng.</p>
         </div>
         <button type="button" class="btn danger small" id="clearAllIpLocksBtn">Mở khoá tất cả IP</button>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Địa chỉ IP &amp; Thiết bị</th><th>Key đã cấp &amp; Gói</th><th>Thời gian nhận</th><th>Thao tác</th></tr></thead>
+          <thead><tr><th>Địa chỉ IP &amp; Thiết bị</th><th>Phân loại Danh mục · Game &amp; Key đã cấp</th><th>Thời gian nhận</th><th>Thao tác</th></tr></thead>
           <tbody>${ipRows}</tbody>
         </table>
       </div>
@@ -4107,12 +4288,24 @@ async function handleFreeKeyFileRead(e) {
 async function handleUploadFreeKeys(e) {
   e.preventDefault();
   const f = e.currentTarget;
-  const tierId = f.elements.tierId.value;
+  const tierId = f.elements.tierId?.value || 'tier_1d';
+  const rawCategoryId = f.elements.categoryId?.value || 'all';
+  const rawProductId = f.elements.productId?.value || 'all';
   const keys = [...new Set(f.elements.freeKeyValues.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean))];
   if (!tierId || !keys.length) {
-    toast('Vui lòng chọn gói vượt link và nhập ít nhất 1 key.');
+    toast('Vui lòng chọn Danh mục, Game, Gói vượt link và nhập ít nhất 1 key.');
     return;
   }
+
+  const prodObj = (rawProductId && rawProductId !== 'all') ? store.products?.[rawProductId] : null;
+  const resolvedCategoryId = prodObj?.categoryId || (rawCategoryId !== 'all' ? rawCategoryId : 'all');
+  const resolvedCategoryName = (resolvedCategoryId && resolvedCategoryId !== 'all' && store.categories?.[resolvedCategoryId]?.name)
+    ? store.categories[resolvedCategoryId].name
+    : 'Tất cả danh mục';
+  const resolvedProductId = prodObj ? rawProductId : 'all';
+  const resolvedProductName = prodObj?.name || 'Tất cả Game trong danh mục';
+  const tierObj = getAdminFreeTiers().find(t => t.id === tierId) || {};
+
   try {
     const updates = {};
     for (const kv of keys) {
@@ -4120,13 +4313,24 @@ async function handleUploadFreeKeys(e) {
       updates[`freeKeyVault/${tierId}/${id}`] = {
         value: kv,
         status: 'available',
-        addedAt: Date.now()
+        tierId,
+        tierTitle: tierObj.title || '',
+        days: Number(tierObj.days) || 1,
+        planId: tierObj.planId || `${tierObj.days || 1}d`,
+        categoryId: resolvedCategoryId,
+        categoryName: resolvedCategoryName,
+        productId: resolvedProductId,
+        productName: resolvedProductName,
+        addedAt: Date.now(),
+        addedBy: currentUser?.uid || 'admin-fixed'
       };
     }
     await update(ref(db), updates);
     f.elements.freeKeyValues.value = '';
     preselectedFreeTier = tierId;
-    toast(`Đã Up ${keys.length} Key Free vào gói thành công!`);
+    preselectedFreeCategory = resolvedCategoryId;
+    preselectedFreeProduct = resolvedProductId;
+    toast(`Đã Up ${keys.length} Key Free cho [${resolvedCategoryName}] ${resolvedProductName} thành công!`);
     renderPanel('freeOffers');
   } catch (err) {
     toast('UpKey Free thất bại: ' + err.message);
@@ -4430,25 +4634,34 @@ async function handleSimulateWebhook(e) {
   const content = form.elements.transferContent.value.trim();
   const amount = Math.max(1000, Number(form.elements.transferAmount.value) || 0);
   try {
+    const pay2sSamplePayload = {
+      transactions: [
+        {
+          id: Date.now(),
+          gateway: 'ACB',
+          transactionDate: new Date().toISOString().replace('T', ' ').slice(0, 19),
+          transactionNumber: 'PAY2S_' + Date.now(),
+          accountNumber: BANK_CONFIG.accountNumber,
+          content: content,
+          transferType: 'IN',
+          transferAmount: amount,
+          checksum: 'pay2s_sim_' + Date.now()
+        }
+      ]
+    };
     const res = await processBankWebhookWithFirebaseSdk({
       db,
       firebaseFns: { ref, get, set, update, push, runTransaction },
-      payload: {
-        id: 'ACB_' + Date.now(),
-        accountNumber: BANK_CONFIG.accountNumber,
-        transferAmount: amount,
-        content: content,
-        transferType: 'in'
-      }
+      payload: pay2sSamplePayload
     });
     if (res.processed > 0) {
       const item = res.results.find(r => r.status === 'credited');
-      toast(`Webhook ACB ONE thành công! Đã cộng +${fmt(amount)} cho tài khoản "${item?.matchedAccountName}".`);
+      toast(`Pay2S Webhook { "success": true }! Đã cộng +${fmt(amount)} cho TK "${item?.matchedAccountName}".`);
     } else {
-      toast(`Không tìm thấy tài khoản nào có tên khớp với nội dung "${content}". Hãy kiểm tra lại tên tài khoản đã tạo!`);
+      toast(`Pay2S ACK { "success": true }, nhưng chưa tìm thấy tài khoản khớp với nội dung "${content}".`);
     }
   } catch (err) {
-    toast('Lỗi chạy Webhook: ' + err.message);
+    toast('Lỗi chạy Webhook Pay2S: ' + err.message);
   }
 }
 
